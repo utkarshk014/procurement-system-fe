@@ -100,7 +100,6 @@ export default function Home() {
         </table>
       </section>
 
-      <p className="muted small">Trusts, institutions, items and vendors will appear here as they are added.</p>
     </>
   );
 }
