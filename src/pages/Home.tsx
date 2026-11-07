@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, errorMessage } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Company, FinancialYear, SetupStatus } from '../lib/types';
@@ -13,6 +13,12 @@ interface HomeData {
 
 export default function Home() {
   const location = useLocation();
+  const navigate = useNavigate();
+  // Show "Setup complete" once, then drop it from history so a reload doesn't show it again.
+  const [justFinished] = useState(() => !!(location.state as { justFinished?: boolean } | null)?.justFinished);
+  useEffect(() => {
+    if (location.state) navigate(location.pathname, { replace: true, state: null });
+  }, [location.state, location.pathname, navigate]);
   const [data, setData] = useState<HomeData | null>(null);
   const [error, setError] = useState('');
 
@@ -48,7 +54,7 @@ export default function Home() {
 
   return (
     <>
-      {(location.state as { justFinished?: boolean } | null)?.justFinished && (
+      {justFinished && (
         <Banner kind="ok">Setup complete. Your organisation is ready.</Banner>
       )}
       <div className="page-head row">

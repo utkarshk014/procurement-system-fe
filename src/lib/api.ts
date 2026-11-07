@@ -8,6 +8,12 @@ const NO_REFRESH = new Set(['/api/v1/auth/login', '/api/v1/auth/refresh', '/api/
 let accessToken: string | null = null;
 let refreshing: Promise<boolean> | null = null;
 
+// Called when the session is dead (refresh returned 401) so the app can go to the login screen.
+let sessionExpiredHandler: (() => void) | null = null;
+export function onSessionExpired(fn: (() => void) | null) {
+  sessionExpiredHandler = fn;
+}
+
 export type FieldError = { field?: string; message: string };
 
 export class ApiError extends Error {
@@ -47,7 +53,10 @@ async function refreshTokens(): Promise<boolean> {
     });
     if (!res.ok) {
       // 401 means the token is dead; other failures (503, network) keep it for a retry.
-      if (res.status === 401) clearTokens();
+      if (res.status === 401) {
+        clearTokens();
+        sessionExpiredHandler?.();
+      }
       return false;
     }
     const { data } = await res.json();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { api, ApiError, errorMessage, fieldMap } from '../lib/api';
 import { formatDate } from '../lib/format';
 import type { Company, CompanyInput, FinancialYear } from '../lib/types';
@@ -36,7 +36,10 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Only the latest load may fill the form, so a slow earlier response can't overwrite what the user typed.
+  const loadId = useRef(0);
   const load = useCallback(async () => {
+    const id = ++loadId.current;
     setLoadError('');
     setLoaded(false);
     try {
@@ -51,13 +54,14 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
           throw e;
         }),
       ]);
+      if (id !== loadId.current) return;
       setExisting(company);
       setStates(stateList);
       setFinStart(company?.fin_st_dt ?? current?.finyr_st_date ?? '');
       setForm(company ? toForm(company) : EMPTY);
       setLoaded(true);
     } catch (e) {
-      setLoadError(errorMessage(e));
+      if (id === loadId.current) setLoadError(errorMessage(e));
     }
   }, []);
 

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api, clearTokens, hasStoredSession, setTokens } from './api';
+import { api, clearTokens, hasStoredSession, onSessionExpired, setTokens } from './api';
 import type { TokenPair, User } from './types';
 
 interface AuthState {
@@ -15,6 +15,12 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [restoring, setRestoring] = useState(hasStoredSession());
+
+  // A dead refresh token anywhere in the app logs the user out; route guards then show the login screen.
+  useEffect(() => {
+    onSessionExpired(() => setUser(null));
+    return () => onSessionExpired(null);
+  }, []);
 
   // After a reload the access token is gone; /auth/me gets a 401, the helper
   // refreshes with the stored refresh token and retries.
