@@ -29,6 +29,7 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
   const [loadError, setLoadError] = useState('');
   const [existing, setExisting] = useState<Company | null>(null);
   const [states, setStates] = useState<string[]>([]);
+  const [years, setYears] = useState<FinancialYear[]>([]);
   const [finStart, setFinStart] = useState('');
   const [form, setForm] = useState<CompanyInput>(EMPTY);
   const [touched, setTouched] = useState<Set<string>>(new Set());
@@ -43,21 +44,20 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
     setLoadError('');
     setLoaded(false);
     try {
-      const [company, stateList, current] = await Promise.all([
+      const [company, stateList, yearList] = await Promise.all([
         api<Company>('/api/v1/company').catch((e) => {
           if (e instanceof ApiError && e.status === 404) return null;
           throw e;
         }),
         api<string[]>('/api/v1/meta/indian-states'),
-        api<FinancialYear>('/api/v1/financial-years/current').catch((e) => {
-          if (e instanceof ApiError && e.status === 404) return null;
-          throw e;
-        }),
+        api<FinancialYear[]>('/api/v1/financial-years'),
       ]);
       if (id !== loadId.current) return;
       setExisting(company);
       setStates(stateList);
-      setFinStart(company?.fin_st_dt ?? current?.finyr_st_date ?? '');
+      setYears(yearList);
+      // A saved company keeps its year; a new one starts with the current year selected.
+      setFinStart(company?.fin_st_dt ?? yearList.find((y) => y.finyr_is_current)?.finyr_st_date ?? '');
       setForm(company ? toForm(company) : EMPTY);
       setLoaded(true);
     } catch (e) {
@@ -95,7 +95,7 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
     // PUT replaces everything, so always send the whole form. sl, time_zone and rec_created_at are never sent.
     const body: CompanyInput = { ...form };
     for (const k of TEXT_FIELDS) body[k] = (body[k] ?? "").trim();
-    if (existing?.fin_st_dt) body.fin_st_dt = existing.fin_st_dt;
+    if (finStart) body.fin_st_dt = finStart;
 
     setSaving(true);
     try {
@@ -160,7 +160,7 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
       <section className="card">
         <h2>Address</h2>
         <div className="grid">
-          <Field id="address" label="Address" error={visibleError('address')} hint={`${form.address.length} / 300`} className="col-12">
+          <Field id="address" label="Address" error={visibleError('address')} className="col-12">
             <textarea
               id="address"
               name="address"
@@ -221,10 +221,10 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
         <h2>Letterhead</h2>
         <p className="section-note">Printed at the top of reports and documents.</p>
         <div className="grid">
-          <Field id="header_1" label="Header line 1" error={visibleError('header_1')} hint={`${form.header_1.length} / 200`} className="col-6">
+          <Field id="header_1" label="Header line 1" error={visibleError('header_1')} className="col-6">
             {input('header_1', { maxLength: 200 })}
           </Field>
-          <Field id="header_2" label="Header line 2" error={visibleError('header_2')} hint={`${form.header_2.length} / 200`} className="col-6">
+          <Field id="header_2" label="Header line 2" error={visibleError('header_2')} className="col-6">
             {input('header_2', { maxLength: 200 })}
           </Field>
         </div>
@@ -233,8 +233,27 @@ export default function CompanyForm({ onSaved, submitLabel = 'Save company' }: P
       <section className="card">
         <h2>Financial</h2>
         <div className="grid">
-          <Field id="fin_st_dt" label="Financial year starts" error={serverErrors.fin_st_dt} hint="Set from the financial year created in step 1" className="col-6">
-            <input id="fin_st_dt" value={formatDate(finStart) || 'Set automatically'} readOnly className="readonly" />
+          <Field id="fin_st_dt" label="Financial year" error={serverErrors.fin_st_dt} hint="The current financial year is selected by default" className="col-6">
+            <select
+              id="fin_st_dt"
+              name="fin_st_dt"
+              value={finStart}
+              onChange={(e) => {
+                setFinStart(e.target.value);
+                setServerErrors((s) => ({ ...s, fin_st_dt: undefined }));
+              }}
+              aria-invalid={!!serverErrors.fin_st_dt}
+            >
+              {!years.some((y) => y.finyr_st_date === finStart) && (
+                <option value={finStart}>{finStart ? `Starts ${formatDate(finStart)}` : 'Current financial year'}</option>
+              )}
+              {years.map((y) => (
+                <option key={y.finyr} value={y.finyr_st_date}>
+                  {y.finyr} · starts {formatDate(y.finyr_st_date)}
+                  {y.finyr_is_current ? ' (current)' : ''}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
       </section>

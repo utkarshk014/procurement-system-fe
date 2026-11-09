@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 /** Spinner that explains the Render cold start if loading takes more than a few seconds. */
 export function Loading({ label = 'Loading…' }: { label?: string }) {
@@ -84,5 +85,22 @@ export function Stepper({ step }: { step: 1 | 2 }) {
         );
       })}
     </ol>
+  );
+}
+
+/** Page title with an optional subtitle and a link back to home. */
+export function PageHead({ title, subtitle, back = true }: { title: string; subtitle?: string; back?: boolean }) {
+  return (
+    <div className="page-head row">
+      <div>
+        <h1>{title}</h1>
+        {subtitle && <p className="muted">{subtitle}</p>}
+      </div>
+      {back && (
+        <Link to="/" className="btn btn-secondary">
+          Back to home
+        </Link>
+      )}
+    </div>
   );
 }

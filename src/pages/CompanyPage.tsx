@@ -1,18 +1,10 @@
-import { Link } from 'react-router-dom';
+import { PageHead } from '../components/ui';
 import CompanyForm from './CompanyForm';
 
 export default function CompanyPage() {
   return (
     <>
-      <div className="page-head row">
-        <div>
-          <h1>Company details</h1>
-          <p className="muted">These details appear on reports and documents.</p>
-        </div>
-        <Link to="/" className="btn btn-secondary">
-          Back to home
-        </Link>
-      </div>
+      <PageHead title="Company details" subtitle="These details appear on reports and documents." />
       <CompanyForm />
     </>
   );
