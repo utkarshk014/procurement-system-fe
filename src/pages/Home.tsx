@@ -67,6 +67,25 @@ export default function Home() {
         </Link>
       </div>
 
+      <nav className="quick-links" aria-label="Masters">
+        <Link to="/company" className="quick-link">
+          <strong>Company</strong>
+          <span className="muted small">Name, address, letterhead</span>
+        </Link>
+        <Link to="/company/tax-details" className="quick-link">
+          <strong>Tax and contact</strong>
+          <span className="muted small">PAN, GSTIN, mail, mobile</span>
+        </Link>
+        <Link to="/financial-years" className="quick-link">
+          <strong>Financial years</strong>
+          <span className="muted small">Add a year, change the current one</span>
+        </Link>
+        <Link to="/trusts" className="quick-link">
+          <strong>Trusts</strong>
+          <span className="muted small">Trusts under the company</span>
+        </Link>
+      </nav>
+
       {c && (
         <section className="card">
           <h2>Company</h2>
@@ -83,21 +102,23 @@ export default function Home() {
 
       <section className="card">
         <h2>Financial years</h2>
-        <table className="table">
-          <thead>
-            <tr><th>Year</th><th>Starts</th><th>Ends</th><th>Status</th></tr>
-          </thead>
-          <tbody>
-            {data.years.map((y) => (
-              <tr key={y.finyr}>
-                <td>{y.finyr}</td>
-                <td>{formatDate(y.finyr_st_date)}</td>
-                <td>{formatDate(y.finyr_end_date)}</td>
-                <td>{y.finyr_is_current ? <span className="tag current">Current</span> : <span className="muted">—</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr><th>Year</th><th>Starts</th><th>Ends</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {data.years.map((y) => (
+                <tr key={y.finyr}>
+                  <td>{y.finyr}</td>
+                  <td>{formatDate(y.finyr_st_date)}</td>
+                  <td>{formatDate(y.finyr_end_date)}</td>
+                  <td>{y.finyr_is_current ? <span className="tag current">Current</span> : <span className="muted">—</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
     </>

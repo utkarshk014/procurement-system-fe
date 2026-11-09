@@ -30,7 +30,7 @@ export interface FinYearOption {
   finyr: string;
   finyr_st_date: string;
   finyr_end_date: string;
-  kind: 'current' | 'previous';
+  kind: 'previous' | 'current' | 'future';
   exists: boolean;
 }
 
@@ -65,3 +65,40 @@ export interface Company extends Omit<CompanyInput, 'fin_st_dt'> {
   time_zone: string;
   rec_created_at: string;
 }
+
+export interface GstState {
+  code: string;
+  name: string;
+}
+
+/** Company tax and contact details (Form 3). The mail password is never returned, only whether one is stored. */
+export interface TaxDetails {
+  sl: number;
+  pan_enabled: boolean;
+  pan_enabled_dt: string | null;
+  pan: string;
+  gstin_enabled: boolean;
+  gstin_enabled_dt: string | null;
+  gstin: string;
+  gstin_state: string;
+  comm_mail_id: string;
+  comm_mail_pwd_set: boolean;
+  comm_mobile: string;
+  comm_whatsapp: string;
+  rec_created_at?: string;
+}
+
+/** PUT body. Leave comm_mail_pwd out to keep the stored password; "" removes it. */
+export type TaxDetailsInput = Omit<TaxDetails, 'sl' | 'comm_mail_pwd_set' | 'rec_created_at'> & { comm_mail_pwd?: string };
+
+export interface Trust {
+  trust_code: string;
+  trust_desc: string;
+  wrk_st_finyr: string;
+  wrk_st_date: string;
+  rec_created_at?: string;
+  last_update_at?: string;
+}
+
+export type TrustCreate = Pick<Trust, 'trust_code' | 'trust_desc' | 'wrk_st_finyr' | 'wrk_st_date'>;
+export type TrustUpdate = Omit<TrustCreate, 'trust_code'>;

@@ -4,6 +4,12 @@ import { formatDate } from '../lib/format';
 import type { FinancialYear, FinYearOption } from '../lib/types';
 import { Banner, Loading } from '../components/ui';
 
+export const KIND_LABEL: Record<FinYearOption['kind'], string> = {
+  previous: 'Previous year',
+  current: 'Current year',
+  future: 'Future year',
+};
+
 export default function FinancialYearStep({ onSaved }: { onSaved: () => void }) {
   const [options, setOptions] = useState<FinYearOption[] | null>(null);
   const [selected, setSelected] = useState('');
@@ -73,7 +79,7 @@ export default function FinancialYearStep({ onSaved }: { onSaved: () => void }) 
             <div className="fy-body">
               <div className="fy-head">
                 <span className="fy-title">{o.finyr}</span>
-                <span className={`tag ${o.kind}`}>{o.kind === 'current' ? 'Current year' : 'Previous year'}</span>
+                <span className={`tag ${o.kind}`}>{KIND_LABEL[o.kind]}</span>
               </div>
               <div className="fy-dates">
                 <div>
