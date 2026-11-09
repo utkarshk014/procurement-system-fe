@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, errorMessage, fieldMap } from '../lib/api';
 import type { CodeEntry, FinancialYear, Institution, InstitutionInput, NextCodes, Trust } from '../lib/types';
@@ -37,6 +37,9 @@ export default function InstitutionNewPage() {
   const [banner, setBanner] = useState('');
   const [saving, setSaving] = useState(false);
   const today = todayInIndia();
+  // The trust and region picked last: a suggestion that arrives after the person picked
+  // something else is dropped, so SAT-00x never lands under trust ACU.
+  const picked = useRef({ trust: '', region: '' });
 
   const load = useCallback(async () => {
     setLoadError('');
@@ -78,20 +81,18 @@ export default function InstitutionNewPage() {
   }
   const blur = (k: Key) => () => setTouched((t) => new Set(t).add(k));
 
-  /** Ask the API for the next free numbers and fill them in. */
-  async function suggest(trustCode: string, regionCode: string) {
-    if (!trustCode && !regionCode) return;
-    const q = new URLSearchParams();
-    if (trustCode) q.set('trust_code', trustCode);
-    if (regionCode) q.set('regn_code', regionCode);
+  /** Ask the API for the next free number for one prefix and fill it in, if it is still the one picked. */
+  async function suggest(kind: 'trust' | 'region', code: string) {
+    picked.current[kind] = code;
+    if (!code) return;
+    const param = kind === 'trust' ? 'trust_code' : 'regn_code';
+    const field: Key = kind === 'trust' ? 'inst_code' : 'inst_reg_code';
     try {
-      const next = await api<NextCodes>(`/api/v1/institutions/next-code?${q}`);
-      setForm((f) => ({
-        ...f,
-        inst_code: trustCode && next.inst_code ? next.inst_code : f.inst_code,
-        inst_reg_code: regionCode && next.inst_reg_code ? next.inst_reg_code : f.inst_reg_code,
-      }));
-      setServerErrors((s) => ({ ...s, inst_code: undefined, inst_reg_code: undefined }));
+      const next = await api<NextCodes>(`/api/v1/institutions/next-code?${param}=${encodeURIComponent(code)}`);
+      const value = kind === 'trust' ? next.inst_code : next.inst_reg_code;
+      if (!value || picked.current[kind] !== code) return;
+      setForm((f) => ({ ...f, [field]: value }));
+      setServerErrors((s) => ({ ...s, [field]: undefined }));
     } catch {
       // A suggestion is only a help; the person can type the code.
     }
@@ -99,12 +100,12 @@ export default function InstitutionNewPage() {
 
   function chooseTrust(code: string) {
     set('trust_code', code);
-    suggest(code, '');
+    suggest('trust', code);
   }
 
   function chooseRegion(code: string) {
     setRegion(code);
-    suggest('', code);
+    suggest('region', code);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -202,7 +203,7 @@ export default function InstitutionNewPage() {
             </Field>
             {text('inst_code', 'ACM code', { required: true, max: 7, className: 'col-4', hint: 'e.g. SAT-001' })}
             {text('inst_reg_code', 'Reg code', { required: true, max: 6, className: 'col-4', hint: 'e.g. MYS-01' })}
-            <Field id="full_code" label="Full code" hint="14 characters, made from the two codes" className="col-4">
+            <Field id="full_code" label="Full code" hint="Made from the two codes" className="col-4">
               <input id="full_code" value={fullCode} readOnly className="readonly" tabIndex={-1} />
             </Field>
           </div>
@@ -249,7 +250,7 @@ export default function InstitutionNewPage() {
           <div className="grid">
             {text('inst_head_name', 'Name', { max: 100 })}
             {text('inst_head_desig', 'Designation', { max: 100, hint: 'e.g. Principal' })}
-            {text('inst_head_mobile', 'Mobile', { inputMode: 'tel', hint: '10 digits' })}
+            {text('inst_head_mobile', 'Mobile', { inputMode: 'tel' })}
             {text('inst_head_email', 'Email', { max: 150, type: 'email', inputMode: 'email' })}
           </div>
         </section>
@@ -258,7 +259,7 @@ export default function InstitutionNewPage() {
           <h2>Accountant</h2>
           <div className="grid">
             {text('inst_acnt_name', 'Name', { max: 100, className: 'col-12' })}
-            {text('inst_acnt_mobile', 'Mobile', { inputMode: 'tel', hint: '10 digits' })}
+            {text('inst_acnt_mobile', 'Mobile', { inputMode: 'tel' })}
             {text('inst_acnt_email', 'Email', { max: 150, type: 'email', inputMode: 'email' })}
           </div>
         </section>
@@ -268,7 +269,7 @@ export default function InstitutionNewPage() {
           <div className="grid">
             {text('inst_liason_name', 'Name', { max: 100 })}
             {text('inst_liason_desig', 'Designation', { max: 100 })}
-            {text('inst_liason_mobile', 'Mobile', { inputMode: 'tel', hint: '10 digits' })}
+            {text('inst_liason_mobile', 'Mobile', { inputMode: 'tel' })}
             {text('inst_liason_email', 'Email', { max: 150, type: 'email', inputMode: 'email' })}
           </div>
         </section>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
 import type { CodeEntry, InstitutionPage, Trust } from '../lib/types';
@@ -27,14 +27,21 @@ export default function InstitutionsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState(q);
 
-  // Dropdown lists load once.
-  useEffect(() => {
-    Promise.all([api<Trust[]>('/api/v1/trusts'), api<CodeEntry[]>('/api/v1/branches'), api<CodeEntry[]>('/api/v1/places')])
-      .then(([trusts, branches, places]) => setLookups({ trusts, branches, places }))
-      .catch((e) => setError(errorMessage(e)));
+  // Only the newest request may show its answer: a slow reply to an older search must not
+  // replace the results of the search now in the box.
+  const latest = useRef(0);
+
+  const loadLookups = useCallback(async () => {
+    const [trusts, branches, places] = await Promise.all([
+      api<Trust[]>('/api/v1/trusts'),
+      api<CodeEntry[]>('/api/v1/branches'),
+      api<CodeEntry[]>('/api/v1/places'),
+    ]);
+    setLookups({ trusts, branches, places });
   }, []);
 
-  const load = useCallback(async () => {
+  const loadPage = useCallback(async () => {
+    const id = ++latest.current;
     setError('');
     setData(null);
     try {
@@ -43,15 +50,26 @@ export default function InstitutionsPage() {
       if (branch) query.set('branch_code', branch);
       if (place) query.set('place_code', place);
       if (q) query.set('q', q);
-      setData(await api<InstitutionPage>(`/api/v1/institutions?${query}`));
+      const result = await api<InstitutionPage>(`/api/v1/institutions?${query}`);
+      if (id === latest.current) setData(result);
     } catch (e) {
-      setError(errorMessage(e));
+      if (id === latest.current) setError(errorMessage(e));
     }
   }, [trust, branch, place, q, page]);
 
+  // Dropdown lists load once (and again on Retry if that failed).
   useEffect(() => {
-    load();
-  }, [load]);
+    loadLookups().catch((e) => setError(errorMessage(e)));
+  }, [loadLookups]);
+
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
+
+  const retry = () => {
+    if (!lookups) loadLookups().catch((e) => setError(errorMessage(e)));
+    loadPage();
+  };
 
   /** Change filters; any change other than the page goes back to page 1. */
   const update = useCallback((changes: Record<string, string>) => {
@@ -79,7 +97,7 @@ export default function InstitutionsPage() {
   return (
     <>
       <PageHead title="Institutions" subtitle="Institutions under each trust, with their head, accountant and liaison officer." />
-      {error && <Banner kind="err" onRetry={load}>{error}</Banner>}
+      {error && <Banner kind="err" onRetry={retry}>{error}</Banner>}
 
       <section className="card">
         <div className="card-head">
@@ -127,6 +145,13 @@ export default function InstitutionsPage() {
 
         {!data ? (
           !error && <Loading label="Loading institutions…" />
+        ) : data.items.length === 0 && data.total > 0 ? (
+          <p className="muted section-note">
+            Page {page} is past the end ({pages} {pages === 1 ? 'page' : 'pages'}).{' '}
+            <button type="button" className="btn btn-link" onClick={() => update({ page: '' })}>
+              Go to the first page
+            </button>
+          </p>
         ) : data.items.length === 0 ? (
           <p className="muted section-note">
             {filtered ? 'No institution matches these filters.' : 'No institutions yet. Add places, branches and regions first, then the institutions.'}

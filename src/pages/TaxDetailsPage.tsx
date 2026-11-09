@@ -193,7 +193,7 @@ export default function TaxDetailsPage() {
                 PAN enabled
               </label>
             </div>
-            <Field id="pan" label="PAN" error={visibleError('pan')} hint="10 characters, e.g. ABCDE1234F" className="col-4">
+            <Field id="pan" label="PAN" error={visibleError('pan')} hint="e.g. ABCDE1234F" className="col-4">
               {text('pan', { maxLength: 10, autoComplete: 'off', spellCheck: false })}
             </Field>
             {form.pan_enabled && (
@@ -221,7 +221,7 @@ export default function TaxDetailsPage() {
                 GSTIN enabled
               </label>
             </div>
-            <Field id="gstin" label="GSTIN" error={visibleError('gstin')} hint="15 characters, starts with the state code" className="col-4">
+            <Field id="gstin" label="GSTIN" error={visibleError('gstin')} hint="Starts with the state code, e.g. 29ABCDE1234F1ZW" className="col-4">
               {text('gstin', { maxLength: 15, autoComplete: 'off', spellCheck: false })}
             </Field>
             {form.gstin_enabled && (

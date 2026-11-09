@@ -109,7 +109,7 @@ export default function TrustsPage() {
           <h2>{isEdit ? `Edit trust ${editing}` : 'Add a trust'}</h2>
           <div className="grid">
             <Field id="trust_code" label="Code" required={!isEdit} error={visibleError('trust_code')}
-              hint={isEdit ? 'A trust code cannot be changed' : '3 letters, e.g. SAT'} className="col-3">
+              hint={isEdit ? 'A trust code cannot be changed' : 'e.g. SAT'} className="col-3">
               <input
                 id="trust_code"
                 value={form.trust_code}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, errorMessage, fieldMap } from '../lib/api';
 import { formatDate } from '../lib/format';
@@ -20,26 +20,43 @@ const EMPTY: CodeEntryInput = { code: '', name: '' };
 export default function MastersPage() {
   const [params, setParams] = useSearchParams();
   const list = LISTS.find((l) => l.key === params.get('tab')) ?? LISTS[0];
+  const select = (key: ListKey) => setParams({ tab: key }, { replace: true });
+
+  // Tabs pattern: only the selected tab is in the Tab order; arrows, Home and End move between tabs.
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const i = LISTS.findIndex((l) => l.key === list.key);
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: LISTS.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const target = LISTS[(next + LISTS.length) % LISTS.length];
+    select(target.key);
+    document.getElementById(`tab-${target.key}`)?.focus();
+  }
 
   return (
     <>
       <PageHead title="Places, branches and regions" subtitle="The lists an institution is filed under." />
-      <div className="tabs" role="tablist" aria-label="Lists">
+      <div className="tabs" role="tablist" aria-label="Lists" onKeyDown={onKeyDown}>
         {LISTS.map((l) => (
           <button
             key={l.key}
+            id={`tab-${l.key}`}
             type="button"
             role="tab"
             aria-selected={l.key === list.key}
+            aria-controls={`panel-${l.key}`}
+            tabIndex={l.key === list.key ? 0 : -1}
             className={`tab ${l.key === list.key ? 'active' : ''}`}
-            onClick={() => setParams({ tab: l.key }, { replace: true })}
+            onClick={() => select(l.key)}
           >
             {l.plural}
           </button>
         ))}
       </div>
-      {/* key: a fresh list (and form) per tab */}
-      <CodeList key={list.key} listKey={list.key} label={list.label} plural={list.plural} example={list.example} />
+      <div role="tabpanel" id={`panel-${list.key}`} aria-labelledby={`tab-${list.key}`}>
+        {/* key: a fresh list (and form) per tab */}
+        <CodeList key={list.key} listKey={list.key} label={list.label} plural={list.plural} example={list.example} />
+      </div>
     </>
   );
 }
@@ -130,7 +147,7 @@ function CodeList({ listKey, label, plural, example }: { listKey: ListKey; label
         <form className="card" onSubmit={onSubmit} noValidate>
           <h2>Add a {label.toLowerCase()}</h2>
           <div className="grid">
-            <Field id={`${listKey}-code`} label="Code" required error={visibleError('code')} hint="3 letters" className="col-3">
+            <Field id={`${listKey}-code`} label="Code" required error={visibleError('code')} hint="e.g. MYS" className="col-3">
               <input
                 id={`${listKey}-code`}
                 value={form.code}
@@ -141,7 +158,7 @@ function CodeList({ listKey, label, plural, example }: { listKey: ListKey; label
                 aria-invalid={!!visibleError('code')}
               />
             </Field>
-            <Field id={`${listKey}-name`} label="Name" required error={visibleError('name')} hint={`e.g. ${example}`} className="col-9">
+            <Field id={`${listKey}-name`} label="Name" required error={visibleError('name')} hint={`e.g. ${example.split(', ')[1]}`} className="col-9">
               <input
                 id={`${listKey}-name`}
                 value={form.name}

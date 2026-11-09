@@ -22,6 +22,7 @@ export default function InstitutionPage() {
   const load = useCallback(async () => {
     setError('');
     setNotFound(false);
+    setInst(null);
     try {
       setInst(await api<Institution>(`/api/v1/institutions/${encodeURIComponent(code)}`));
     } catch (e) {
