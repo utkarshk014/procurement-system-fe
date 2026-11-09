@@ -12,6 +12,10 @@ import CompanyPage from './pages/CompanyPage';
 import FinancialYearsPage from './pages/FinancialYearsPage';
 import TaxDetailsPage from './pages/TaxDetailsPage';
 import TrustsPage from './pages/TrustsPage';
+import MastersPage from './pages/MastersPage';
+import InstitutionsPage from './pages/InstitutionsPage';
+import InstitutionNewPage from './pages/InstitutionNewPage';
+import InstitutionPage from './pages/InstitutionPage';
 
 /** Logged-in tenant admins only. The platform admin cannot open company screens. */
 function RequireTenantAdmin({ children }: { children: ReactNode }) {
@@ -67,6 +71,10 @@ export default function App() {
         <Route path="/company/tax-details" element={afterSetup(<TaxDetailsPage />)} />
         <Route path="/financial-years" element={afterSetup(<FinancialYearsPage />)} />
         <Route path="/trusts" element={afterSetup(<TrustsPage />)} />
+        <Route path="/masters" element={afterSetup(<MastersPage />)} />
+        <Route path="/institutions" element={afterSetup(<InstitutionsPage />)} />
+        <Route path="/institutions/new" element={afterSetup(<InstitutionNewPage />)} />
+        <Route path="/institutions/:code" element={afterSetup(<InstitutionPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

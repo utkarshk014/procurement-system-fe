@@ -1,6 +1,6 @@
 // Mirrors the API's rules (docs/API.md and src/packages/validation in the backend) for instant feedback.
 // The API checks everything again; its answer always wins.
-import type { CompanyInput, FinancialYear, GstState, TaxDetailsInput, TrustCreate } from './types';
+import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate } from './types';
 
 export type Errors = Partial<Record<keyof CompanyInput, string>>;
 
@@ -149,4 +149,63 @@ export function validateTrust(t: TrustCreate, years: FinancialYear[], editing: b
 /** Today in India as YYYY-MM-DD (the API's DEFAULT_TIMEZONE). */
 export function todayInIndia(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+// ---------- Places, branches, regions (Form 5) ----------
+
+export const isListCode = (v: string) => /^[A-Z]{3}$/.test(v.trim().toUpperCase());
+
+export type CodeEntryErrors = Partial<Record<keyof CodeEntryInput, string>>;
+
+export function validateCodeEntry(e: CodeEntryInput, label: string): CodeEntryErrors {
+  const out: CodeEntryErrors = {};
+  if (!e.code.trim()) out.code = `${label} code is required`;
+  else if (!isListCode(e.code)) out.code = 'Must be exactly 3 letters, e.g. MYS';
+  if (!e.name.trim()) out.name = `${label} name is required`;
+  else if (e.name.trim().length > 250) out.name = 'Must be 250 characters or fewer';
+  return out;
+}
+
+// ---------- Institutions (Form 5) ----------
+
+/** ACM code: trust code, a dash, 3 digits (SAT-001). */
+export const isInstCode = (v: string) => /^[A-Z]{3}-\d{3}$/.test(v.trim().toUpperCase());
+/** Reg code: region code, a dash, 2 digits (MYS-01). */
+export const isRegCode = (v: string) => /^[A-Z]{3}-\d{2}$/.test(v.trim().toUpperCase());
+
+export type InstitutionErrors = Partial<Record<keyof InstitutionInput, string>>;
+
+const INST_MAX: Partial<Record<keyof InstitutionInput, number>> = {
+  inst_name: 250, inst_add: 250, inst_place: 250, inst_tel: 100,
+  inst_head_name: 100, inst_head_desig: 100, inst_acnt_name: 100, inst_liason_name: 100, inst_liason_desig: 100,
+  inst_email: 150, inst_head_email: 150, inst_acnt_email: 150, inst_liason_email: 150,
+};
+
+/** Every problem at once; `regions` are the region codes, used to check the reg code's prefix. */
+export function validateInstitution(i: InstitutionInput, regions: string[], today: string): InstitutionErrors {
+  const e: InstitutionErrors = {};
+  const code = i.inst_code.trim().toUpperCase();
+  const reg = i.inst_reg_code.trim().toUpperCase();
+  if (!i.trust_code) e.trust_code = 'Choose the trust';
+  if (!code) e.inst_code = 'ACM code is required';
+  else if (!isInstCode(code)) e.inst_code = 'Trust code, a dash and 3 digits, e.g. SAT-001';
+  else if (i.trust_code && !code.startsWith(i.trust_code + '-')) e.inst_code = `Must start with ${i.trust_code}-`;
+  if (!reg) e.inst_reg_code = 'Reg code is required';
+  else if (!isRegCode(reg)) e.inst_reg_code = 'Region code, a dash and 2 digits, e.g. MYS-01';
+  else if (regions.length && !regions.includes(reg.slice(0, 3))) e.inst_reg_code = `${reg.slice(0, 3)} is not a region code`;
+  if (!i.inst_name.trim()) e.inst_name = 'Institution name is required';
+  if (!i.place_code) e.place_code = 'Choose the place';
+  if (!i.branch_code) e.branch_code = 'Choose the branch';
+  if (!i.from_fin_yr) e.from_fin_yr = 'Choose the start year';
+  if (i.reg_date && i.reg_date > today) e.reg_date = 'Cannot be in the future';
+  for (const k of ['inst_email', 'inst_head_email', 'inst_acnt_email', 'inst_liason_email'] as const) {
+    if (i[k].trim() && !isEmail(i[k])) e[k] = 'Enter a valid email address';
+  }
+  for (const k of ['inst_head_mobile', 'inst_acnt_mobile', 'inst_liason_mobile'] as const) {
+    if (i[k].trim() && !isMobile(i[k])) e[k] = 'Enter a 10-digit mobile number';
+  }
+  for (const [k, max] of Object.entries(INST_MAX) as [keyof InstitutionInput, number][]) {
+    if (!e[k] && String(i[k]).trim().length > max) e[k] = `Must be ${max} characters or fewer`;
+  }
+  return e;
 }

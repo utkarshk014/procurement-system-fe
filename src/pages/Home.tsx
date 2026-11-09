@@ -84,6 +84,14 @@ export default function Home() {
           <strong>Trusts</strong>
           <span className="muted small">Trusts under the company</span>
         </Link>
+        <Link to="/masters" className="quick-link">
+          <strong>Places, branches, regions</strong>
+          <span className="muted small">Lists institutions are filed under</span>
+        </Link>
+        <Link to="/institutions" className="quick-link">
+          <strong>Institutions</strong>
+          <span className="muted small">Institutions under each trust</span>
+        </Link>
       </nav>
 
       {c && (

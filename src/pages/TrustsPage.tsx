@@ -117,7 +117,6 @@ export default function TrustsPage() {
                 onBlur={blur('trust_code')}
                 readOnly={isEdit}
                 className={isEdit ? 'readonly' : undefined}
-                maxLength={3}
                 autoComplete="off"
                 autoFocus={!isEdit}
                 aria-invalid={!!visibleError('trust_code')}

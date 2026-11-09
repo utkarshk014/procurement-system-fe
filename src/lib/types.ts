@@ -102,3 +102,64 @@ export interface Trust {
 
 export type TrustCreate = Pick<Trust, 'trust_code' | 'trust_desc' | 'wrk_st_finyr' | 'wrk_st_date'>;
 export type TrustUpdate = Omit<TrustCreate, 'trust_code'>;
+
+/** One row of a Form 5 code list (places, branches, regions). The same shape for all three. */
+export interface CodeEntry {
+  code: string;
+  name: string;
+  rec_created_at?: string;
+  last_update_at?: string | null;
+}
+
+export type CodeEntryInput = Pick<CodeEntry, 'code' | 'name'>;
+
+/** An institution (Form 5). place_name, branch_name and trust_name are copied in by the server. */
+export interface Institution {
+  inst_code: string;
+  inst_reg_code: string;
+  inst_full_code: string;
+  inst_name: string;
+  inst_add: string;
+  inst_place: string;
+  place_code: string;
+  place_name: string;
+  branch_code: string;
+  branch_name: string;
+  trust_code: string;
+  trust_name: string;
+  reg_date: string;
+  from_fin_yr: string;
+  inst_email: string;
+  inst_tel: string;
+  inst_head_name: string;
+  inst_head_desig: string;
+  inst_head_mobile: string;
+  inst_head_email: string;
+  inst_acnt_name: string;
+  inst_acnt_mobile: string;
+  inst_acnt_email: string;
+  inst_liason_name: string;
+  inst_liason_desig: string;
+  inst_liason_mobile: string;
+  inst_liason_email: string;
+  rec_created_at?: string;
+  last_update_at?: string | null;
+}
+
+/** POST body. The full code, the *_name copies and the timestamps are server-owned. */
+export type InstitutionInput = Omit<
+  Institution,
+  'inst_full_code' | 'place_name' | 'branch_name' | 'trust_name' | 'rec_created_at' | 'last_update_at'
+>;
+
+export interface InstitutionPage {
+  items: Institution[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface NextCodes {
+  inst_code: string;
+  inst_reg_code: string;
+}
