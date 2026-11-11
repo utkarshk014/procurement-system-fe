@@ -67,6 +67,21 @@ export default function FinancialYearsPage() {
     }
   }
 
+  async function deleteYear(finyr: string) {
+    if (!window.confirm(`Delete financial year ${finyr}? This cannot be undone.`)) return;
+    setBusy(finyr);
+    setBanner(null);
+    try {
+      await api<void>(`/api/v1/financial-years/${encodeURIComponent(finyr)}`, { method: 'DELETE' });
+      setBanner({ kind: 'ok', text: `Financial year ${finyr} deleted.` });
+      await load();
+    } catch (e) {
+      setBanner({ kind: 'err', text: errorMessage(e) });
+    } finally {
+      setBusy('');
+    }
+  }
+
   if (loadError) return <Banner kind="err" onRetry={load}>{loadError}</Banner>;
   if (!years) return <Loading label="Loading financial years…" />;
 
@@ -92,10 +107,17 @@ export default function FinancialYearsPage() {
                   <td className="nowrap hide-sm">{formatDate(y.finyr_end_date)}</td>
                   <td>{y.finyr_is_current ? <span className="tag current">Current</span> : <span className="muted">—</span>}</td>
                   <td className="right">
+                    {/* The current year has no actions: it cannot be deleted and is already current. */}
                     {!y.finyr_is_current && (
-                      <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => makeCurrent(y.finyr)}>
-                        {busy === y.finyr ? 'Saving…' : 'Make current'}
-                      </button>
+                      <span className="row-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={!!busy} onClick={() => makeCurrent(y.finyr)}>
+                          {busy === y.finyr ? 'Saving…' : 'Make current'}
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" disabled={!!busy} onClick={() => deleteYear(y.finyr)}
+                          aria-label={`Delete ${y.finyr}`}>
+                          Delete
+                        </button>
+                      </span>
                     )}
                   </td>
                 </tr>

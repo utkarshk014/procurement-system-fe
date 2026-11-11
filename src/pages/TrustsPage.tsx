@@ -96,6 +96,22 @@ export default function TrustsPage() {
     }
   }
 
+  async function deleteTrust(code: string) {
+    if (!window.confirm(`Delete trust ${code}? This cannot be undone.`)) return;
+    setSaving(true);
+    setBanner(null);
+    try {
+      await api<void>(`/api/v1/trusts/${encodeURIComponent(code)}`, { method: 'DELETE' });
+      if (editing === code) setEditing(null);
+      setBanner({ kind: 'ok', text: `Trust ${code} deleted.` });
+      await load();
+    } catch (err) {
+      setBanner({ kind: 'err', text: errorMessage(err) });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loadError) return <Banner kind="err" onRetry={load}>{loadError}</Banner>;
   if (!trusts) return <Loading label="Loading trusts…" />;
 
@@ -193,9 +209,15 @@ export default function TrustsPage() {
                     <td className="nowrap hide-sm">{t.wrk_st_finyr}</td>
                     <td className="nowrap hide-sm">{formatDate(t.wrk_st_date)}</td>
                     <td className="right">
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => open(t)} disabled={saving}>
-                        Edit
-                      </button>
+                      <span className="row-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => open(t)} disabled={saving}>
+                          Edit
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => deleteTrust(t.trust_code)} disabled={saving}
+                          aria-label={`Delete trust ${t.trust_code}`}>
+                          Delete
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 ))}

@@ -33,9 +33,9 @@ npm run dev          # http://localhost:3000; use localhost, not 127.0.0.1
 | `/` | Home: links to the masters, the company summary and the list of financial years. Redirects to `/setup` until setup is done |
 | `/company` | Edit company: the same form, which updates the single record. The financial year is a dropdown with the current year selected |
 | `/company/tax-details` | PAN, GSTIN (each with "enabled" and a date), GST state, communication email and password, mobile, WhatsApp. Nothing is mandatory; anything typed is checked (PAN format, GSTIN check digit and state code, PAN inside GSTIN). The password is write-only: the page shows "Password saved" and sends `comm_mail_pwd` only when changed (`""` removes it) |
-| `/financial-years` | All years, add one from `/financial-years/options`, and **Make current** (`PUT /financial-years/current`) |
-| `/trusts` | List, add and edit trusts. The 3-letter code is fixed once created. The start date must fall inside the chosen year |
-| `/masters` | Places, branches and regions, one tab each (`?tab=branches`): a searchable list and an add form (3-letter code, name unique ignoring case). No edit yet: the database has no procedure for it |
+| `/financial-years` | All years, add one from `/financial-years/options`, **Make current** (`PUT /financial-years/current`) and **Delete** for a year that is not current and not used |
+| `/trusts` | List, add, edit and delete trusts. The 3-letter code is fixed once created. The start date must fall inside the chosen year. A trust an institution uses cannot be deleted (the API's 409 message is shown) |
+| `/masters` | Places, branches and regions, one tab each (`?tab=branches`): a searchable list, an add form (3-letter code, name unique ignoring case) and Delete (refused with the database's reason while an institution uses the row). No edit yet: the database has no procedure for it |
 | `/institutions` | Institutions, 50 a page, filtered by trust, branch and place and searched by name or code (filters stay in the URL) |
 | `/institutions/new` | New institution, after the old system's screen: pick the trust and region to get the next ACM code (`SAT-001`) and reg code (`MYS-01`), the 14-character full code is shown; name, place, branch, start year (current or previous), address, and the head, accountant and liaison officer |
 | `/institutions/:code` | One institution, laid out like the old "Institution Details" card. Read-only: no edit procedure yet |

@@ -153,6 +153,9 @@ input.readonly { background: #f6f7f9; color: var(--muted); }
 .btn-primary:hover:not(:disabled) { background: var(--brand-dark); }
 .btn-secondary { background: #fff; color: var(--ink); border-color: var(--input); }
 .btn-secondary:hover { background: #f0f2f6; }
+.btn-danger { background: #fff; color: var(--error); border-color: #fecdca; }
+.btn-danger:hover:not(:disabled) { background: var(--error-bg); }
+.row-actions { display: inline-flex; gap: 8px; justify-content: flex-end; }
 .btn-ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, .45); padding: 6px 14px; }
 .btn-ghost:hover { background: rgba(255, 255, 255, .12); }
 .btn-link { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; }

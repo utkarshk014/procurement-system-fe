@@ -136,6 +136,21 @@ function CodeList({ listKey, label, plural, example }: { listKey: ListKey; label
     }
   }
 
+  async function remove(code: string) {
+    if (!window.confirm(`Delete ${label.toLowerCase()} ${code}? This cannot be undone.`)) return;
+    setSaving(true);
+    setBanner(null);
+    try {
+      await api<void>(`/api/v1/${listKey}/${encodeURIComponent(code)}`, { method: 'DELETE' });
+      setBanner({ kind: 'ok', text: `${label} ${code} deleted.` });
+      await load();
+    } catch (err) {
+      setBanner({ kind: 'err', text: errorMessage(err) });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (loadError) return <Banner kind="err" onRetry={load}>{loadError}</Banner>;
   if (!rows) return <Loading label={`Loading ${plural.toLowerCase()}…`} />;
 
@@ -209,7 +224,7 @@ function CodeList({ listKey, label, plural, example }: { listKey: ListKey; label
           <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr><th>Code</th><th>Name</th><th className="hide-sm">Added</th></tr>
+                <tr><th>Code</th><th>Name</th><th className="hide-sm">Added</th><th aria-label="Actions" /></tr>
               </thead>
               <tbody>
                 {shown.map((r) => (
@@ -217,13 +232,22 @@ function CodeList({ listKey, label, plural, example }: { listKey: ListKey; label
                     <td><strong>{r.code}</strong></td>
                     <td>{r.name}</td>
                     <td className="nowrap hide-sm">{formatDate(r.rec_created_at)}</td>
+                    <td className="right">
+                      <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(r.code)} disabled={saving}
+                        aria-label={`Delete ${label.toLowerCase()} ${r.code}`}>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-        <p className="muted small">Editing is not available yet: the database has no procedure to change a {label.toLowerCase()}.</p>
+        <p className="muted small">
+          A {label.toLowerCase()} can be deleted while no institution uses it. Editing is not available yet: the database has no
+          procedure to change one.
+        </p>
       </section>
     </>
   );
