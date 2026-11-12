@@ -92,6 +92,10 @@ export default function Home() {
           <strong>Institutions</strong>
           <span className="muted small">Institutions under each trust</span>
         </Link>
+        <Link to="/institutions/import" className="quick-link">
+          <strong>Import institutions</strong>
+          <span className="muted small">From Excel, with a downloadable template</span>
+        </Link>
       </nav>
 
       {c && (
