@@ -163,3 +163,28 @@ export interface NextCodes {
   inst_code: string;
   inst_reg_code: string;
 }
+
+export interface ImportProblem {
+  row: number;
+  inst_code: string;
+  inst_name: string;
+  errors: { field?: string; message: string }[];
+}
+
+export interface NameCount {
+  name: string;
+  rows: number;
+}
+
+/** POST /institutions/import: a dry run saves nothing; otherwise the ready rows are saved together. */
+export interface ImportReport {
+  dry_run: boolean;
+  total: number;
+  ready: number;
+  imported: number;
+  skipped: number;
+  problems: ImportProblem[];
+  missing_places: NameCount[];
+  missing_branches: NameCount[];
+  default_from_fin_yr: string;
+}

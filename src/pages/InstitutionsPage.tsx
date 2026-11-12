@@ -104,9 +104,14 @@ export default function InstitutionsPage() {
           <h2>
             All institutions {data && <span className="muted small">({data.total})</span>}
           </h2>
-          <Link to="/institutions/new" className="btn btn-primary btn-sm">
-            New institution
-          </Link>
+          <span className="row-actions">
+            <Link to="/institutions/import" className="btn btn-secondary btn-sm">
+              Import from Excel
+            </Link>
+            <Link to="/institutions/new" className="btn btn-primary btn-sm">
+              New institution
+            </Link>
+          </span>
         </div>
 
         <div className="filters">

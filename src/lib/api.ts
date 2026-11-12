@@ -67,9 +67,11 @@ async function refreshTokens(): Promise<boolean> {
   }
 }
 
-export async function api<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
+/** Sends a request with the token, refreshing it once on a 401. A string body is JSON; a FormData
+ *  body (a file upload) gets its own multipart Content-Type from the browser. */
+async function send(path: string, init: RequestInit, retried = false): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set('Content-Type', 'application/json');
+  if (typeof init.body === 'string') headers.set('Content-Type', 'application/json');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
 
   let res: Response;
@@ -84,16 +86,37 @@ export async function api<T>(path: string, init: RequestInit = {}, retried = fal
     refreshing ??= refreshTokens().finally(() => {
       refreshing = null;
     });
-    if (await refreshing) return api<T>(path, init, true);
+    if (await refreshing) return send(path, init, true);
   }
-  if (res.status === 204) return undefined as T;
+  return res;
+}
 
+async function failure(res: Response): Promise<ApiError> {
   const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const e = body?.error ?? {};
-    throw new ApiError(res.status, e.code ?? 'unknown', e.message ?? res.statusText, e.fields ?? [], e.request_id);
-  }
+  const e = body?.error ?? {};
+  return new ApiError(res.status, e.code ?? 'unknown', e.message ?? res.statusText, e.fields ?? [], e.request_id);
+}
+
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await send(path, init);
+  if (res.status === 204) return undefined as T;
+  if (!res.ok) throw await failure(res);
+  const body = await res.json().catch(() => null);
   return body.data as T;
+}
+
+/** Downloads a file the API returns (for example an .xlsx template) under the given name. */
+export async function download(path: string, filename: string): Promise<void> {
+  const res = await send(path, {});
+  if (!res.ok) throw await failure(res);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Message to show for an error; adds the request id for 5xx so it can be reported. */

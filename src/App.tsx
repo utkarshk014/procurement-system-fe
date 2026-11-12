@@ -16,6 +16,7 @@ import MastersPage from './pages/MastersPage';
 import InstitutionsPage from './pages/InstitutionsPage';
 import InstitutionNewPage from './pages/InstitutionNewPage';
 import InstitutionPage from './pages/InstitutionPage';
+import InstitutionImportPage from './pages/InstitutionImportPage';
 
 /** Logged-in tenant admins only. The platform admin cannot open company screens. */
 function RequireTenantAdmin({ children }: { children: ReactNode }) {
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="/masters" element={afterSetup(<MastersPage />)} />
         <Route path="/institutions" element={afterSetup(<InstitutionsPage />)} />
         <Route path="/institutions/new" element={afterSetup(<InstitutionNewPage />)} />
+        <Route path="/institutions/import" element={afterSetup(<InstitutionImportPage />)} />
         <Route path="/institutions/:code" element={afterSetup(<InstitutionPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

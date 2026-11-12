@@ -264,9 +264,23 @@ input:disabled { background: #f6f7f9; color: var(--muted); }
 .radio-row .check { font-weight: 400; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .details.single { grid-template-columns: 1fr; }
+.import-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.file-pick input { width: auto; max-width: 100%; border: 1px dashed var(--input); padding: 8px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.stats > div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; }
+.stats strong { font-size: 22px; }
+.stats .ok strong { color: var(--ok); }
+.stats .bad strong { color: var(--error); }
+.missing { background: #fff8eb; border: 1px solid #fde4b0; border-radius: 8px; padding: 10px 14px; margin: 12px 0; }
+.missing p { margin: 0 0 8px; }
+.missing-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.missing-lists h3, .card h3 { font-size: 14px; margin: 12px 0 6px; }
+.missing-lists ul { margin: 0; padding-left: 18px; max-height: 240px; overflow: auto; }
+.problem-list { margin: 0; padding-left: 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (max-width: 760px) {
-  .filters, .two-col { grid-template-columns: 1fr; }
+  .filters, .two-col, .missing-lists { grid-template-columns: 1fr; }
   .col-3, .col-4, .col-6, .col-8, .col-9 { grid-column: span 12; }
   .fy-options, .details { grid-template-columns: 1fr; }
   .brand-text, .user-meta { display: none; }

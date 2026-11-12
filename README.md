@@ -38,6 +38,7 @@ npm run dev          # http://localhost:3000; use localhost, not 127.0.0.1
 | `/masters` | Places, branches and regions, one tab each (`?tab=branches`): a searchable list, an add form (3-letter code, name unique ignoring case) and Delete (refused with the database's reason while an institution uses the row). No edit yet: the database has no procedure for it |
 | `/institutions` | Institutions, 50 a page, filtered by trust, branch and place and searched by name or code (filters stay in the URL) |
 | `/institutions/new` | New institution, after the old system's screen: pick the trust and region to get the next ACM code (`SAT-001`) and reg code (`MYS-01`), the 14-character full code is shown; name, place, branch, start year (current or previous), address, and the head, accountant and liaison officer |
+| `/institutions/import` | Excel import: **Download template**, choose an .xlsx (the old system's sheet works as it is), **Check file** shows how many rows are ready, every problem by row, and the place and branch names the lists don't have yet; **Import N institutions** saves the ready rows in one go and skips the rest |
 | `/institutions/:code` | One institution, laid out like the old "Institution Details" card. Read-only: no edit procedure yet |
 
 The pages after setup (`/company`, `/company/tax-details`, `/financial-years`, `/trusts`, `/masters`, `/institutions`) send the user to
