@@ -102,7 +102,8 @@ async function confirmDelete(path: string, what: string, setBanner: (b: BannerSt
   }
 }
 
-/** Edit and Delete buttons for one row. */
+/** Edit and Delete buttons for one row; off while a form is open, so typing is never lost and the
+ * row being edited can't be deleted under it. */
 function RowActions({ name, onEdit, onDelete, disabled }: { name: string; onEdit: () => void; onDelete: () => void; disabled: boolean }) {
   return (
     <td className="right">
@@ -295,7 +296,7 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
             <td className="nowrap hide-sm">{formatDate(r.rec_created_at)}</td>
             <RowActions
               name={`${label.toLowerCase()} ${r.name}`}
-              disabled={saving}
+              disabled={saving || !!form}
               onEdit={() => open(r)}
               onDelete={() => confirmDelete(`${path}/${r.id}`, `${label.toLowerCase()} "${r.name}"`, setBanner, load)}
             />
@@ -450,7 +451,7 @@ function UomList() {
             <td className="nowrap hide-sm">{formatDate(r.rec_created_at)}</td>
             <RowActions
               name={`unit ${r.uom}`}
-              disabled={saving}
+              disabled={saving || !!mode}
               onEdit={() => open(r)}
               onDelete={() => confirmDelete(`${path}/${r.id}`, `unit ${r.uom}`, setBanner, load)}
             />

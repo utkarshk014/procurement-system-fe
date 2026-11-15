@@ -194,11 +194,11 @@ export default function ItemsPage() {
                     </td>
                     <td className="right">
                       <div className="row-actions">
-                        <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-label={`Edit item ${it.item_desc}`}
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={busy || !!formFor} aria-label={`Edit item ${it.item_desc}`}
                           onClick={() => { setBanner(null); setFormFor(it); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                           Edit
                         </button>
-                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(it)} disabled={busy}
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(it)} disabled={busy || !!formFor}
                           aria-label={`Delete item ${it.item_desc}`}>
                           Delete
                         </button>
@@ -244,9 +244,14 @@ function ItemFormCard({ lookups, items, editing, onCancel, onSaved }: {
   const [serverErrors, setServerErrors] = useState<ItemErrors>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // SGST and CGST follow GST (half each) until the user types one of them.
-  // An item being edited keeps its own split.
-  const [splitByHand, setSplitByHand] = useState(!!editing);
+  // SGST and CGST follow GST (half each) until the user types one of them. An item being
+  // edited keeps following GST if its stored split is half each; only an uneven split stays fixed.
+  const [splitByHand, setSplitByHand] = useState(() => {
+    if (!editing) return false;
+    const f = toForm(editing);
+    const h = half(f.gst_percentage);
+    return f.sgst_percentage !== h || f.cgst_percentage !== h;
+  });
 
   const clientErrors = useMemo(() => {
     const e = validateItem(form);
