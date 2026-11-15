@@ -15,9 +15,11 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number]['key'];
 
-const NO_EDIT_NOTE = 'Editing and deleting are not available yet: the database has no procedure for them.';
+const IN_USE_NOTE = 'A row that any item uses cannot be deleted.';
 
-/** Item groups, categories, manufacturers and units of measurement: one tab each, a searchable list and an add form. */
+type BannerState = { kind: 'ok' | 'err'; text: string } | null;
+
+/** Item groups, categories, manufacturers and units of measurement: one tab each, a searchable list, add, edit and delete. */
 export default function StockListsPage() {
   const [params, setParams] = useSearchParams();
   const tab = TABS.find((t) => t.key === params.get('tab')) ?? TABS[0];
@@ -69,7 +71,7 @@ export default function StockListsPage() {
   );
 }
 
-/** Loads one list and keeps a banner for the last save. */
+/** Loads one list. */
 function useList<T>(path: string) {
   const [rows, setRows] = useState<T[] | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -87,6 +89,35 @@ function useList<T>(path: string) {
   return { rows, loadError, load };
 }
 
+/** Deletes one row after confirming; the server's refusal (row still used) becomes the banner. */
+async function confirmDelete(path: string, what: string, setBanner: (b: BannerState) => void, reload: () => Promise<void>) {
+  if (!window.confirm(`Delete ${what}? This cannot be undone.`)) return;
+  setBanner(null);
+  try {
+    await api<void>(path, { method: 'DELETE' });
+    setBanner({ kind: 'ok', text: `${what[0].toUpperCase()}${what.slice(1)} deleted.` });
+    await reload();
+  } catch (err) {
+    setBanner({ kind: 'err', text: errorMessage(err) });
+  }
+}
+
+/** Edit and Delete buttons for one row. */
+function RowActions({ name, onEdit, onDelete, disabled }: { name: string; onEdit: () => void; onDelete: () => void; disabled: boolean }) {
+  return (
+    <td className="right">
+      <div className="row-actions">
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onEdit} disabled={disabled} aria-label={`Edit ${name}`}>
+          Edit
+        </button>
+        <button type="button" className="btn btn-danger btn-sm" onClick={onDelete} disabled={disabled} aria-label={`Delete ${name}`}>
+          Delete
+        </button>
+      </div>
+    </td>
+  );
+}
+
 /** The list card: title with count, Add button, search box, table or empty note. */
 function ListCard<T>(props: {
   plural: string;
@@ -96,7 +127,7 @@ function ListCard<T>(props: {
   search: string;
   onSearch: (v: string) => void;
   searchHint: string;
-  adding: boolean;
+  formOpen: boolean;
   onAdd: () => void;
   head: ReactNode;
   row: (r: T) => ReactNode;
@@ -108,7 +139,7 @@ function ListCard<T>(props: {
         <h2>
           {plural} <span className="muted small">({rows.length})</span>
         </h2>
-        {!props.adding && (
+        {!props.formOpen && (
           <button type="button" className="btn btn-primary btn-sm" onClick={props.onAdd}>
             Add {label.toLowerCase()}
           </button>
@@ -136,8 +167,22 @@ function ListCard<T>(props: {
           </table>
         </div>
       )}
-      <p className="muted small">{NO_EDIT_NOTE}</p>
+      <p className="muted small">{IN_USE_NOTE}</p>
     </section>
+  );
+}
+
+/** The add / edit form's buttons. */
+function FormActions({ editing, label, saving, onCancel }: { editing: boolean; label: string; saving: boolean; onCancel: () => void }) {
+  return (
+    <div className="actions">
+      <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>
+        Cancel
+      </button>
+      <button type="submit" className="btn btn-primary" disabled={saving}>
+        {saving ? 'Saving…' : editing ? 'Save changes' : `Add ${label.toLowerCase()}`}
+      </button>
+    </div>
   );
 }
 
@@ -146,19 +191,21 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
   const path = `/api/v1/stock/${listKey}`;
   const { rows, loadError, load } = useList<StockEntry>(path);
   const [search, setSearch] = useState('');
-  const [adding, setAdding] = useState(false);
+  // null: no form; 'new': adding; a row: editing it.
+  const [form, setForm] = useState<'new' | StockEntry | null>(null);
   const [name, setName] = useState('');
   const [touched, setTouched] = useState(false);
   const [serverError, setServerError] = useState('');
-  const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [banner, setBanner] = useState<BannerState>(null);
   const [saving, setSaving] = useState(false);
+  const editing = form !== null && form !== 'new' ? form : null;
 
   const clientError = !name.trim() ? 'is required' : name.trim().length > 250 ? 'must be at most 250 characters' : '';
-  // A name already in the list is caught before saving; the server checks again.
+  // A name another row already has is caught before saving; the server checks again.
   const duplicate = useMemo(() => {
     const n = name.trim().replace(/\s+/g, ' ').toLowerCase();
-    return n ? rows?.find((r) => r.name.toLowerCase() === n) : undefined;
-  }, [name, rows]);
+    return n ? rows?.find((r) => r.id !== editing?.id && r.name.toLowerCase() === n) : undefined;
+  }, [name, rows, editing]);
   const error = serverError || (touched ? clientError || (duplicate ? `is already in the list (#${duplicate.id})` : '') : '');
 
   const shown = useMemo(() => {
@@ -166,12 +213,13 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
     return !rows || !q ? rows ?? [] : rows.filter((r) => r.name.toLowerCase().includes(q));
   }, [rows, search]);
 
-  function open() {
-    setName('');
+  function open(row: 'new' | StockEntry) {
+    setName(row === 'new' ? '' : row.name);
     setTouched(false);
     setServerError('');
     setBanner(null);
-    setAdding(true);
+    setForm(row);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   async function onSubmit(e: FormEvent) {
@@ -184,9 +232,12 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
     }
     setSaving(true);
     try {
-      const saved = await api<StockEntry>(path, { method: 'POST', body: JSON.stringify({ name: name.trim() }) });
-      setBanner({ kind: 'ok', text: `${label} "${saved.name}" added.` });
-      setAdding(false);
+      const body = JSON.stringify({ name: name.trim() });
+      const saved = editing
+        ? await api<StockEntry>(`${path}/${editing.id}`, { method: 'PUT', body })
+        : await api<StockEntry>(path, { method: 'POST', body });
+      setBanner({ kind: 'ok', text: `${label} "${saved.name}" ${editing ? 'saved' : 'added'}.` });
+      setForm(null);
       await load();
     } catch (err) {
       const fields = err instanceof ApiError ? fieldMap(err.fields) : {};
@@ -203,9 +254,9 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
   return (
     <>
       {banner && <Banner kind={banner.kind}>{banner.text}</Banner>}
-      {adding && (
+      {form && (
         <form className="card" onSubmit={onSubmit} noValidate>
-          <h2>Add {label.toLowerCase()}</h2>
+          <h2>{editing ? `Edit ${label.toLowerCase()} #${editing.id}` : `Add ${label.toLowerCase()}`}</h2>
           <div className="grid">
             <Field id={`${listKey}-name`} label="Name" required error={error} hint={`e.g. ${example}`} className="col-12">
               <input
@@ -223,14 +274,7 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
               />
             </Field>
           </div>
-          <div className="actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setAdding(false)} disabled={saving}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : `Add ${label.toLowerCase()}`}
-            </button>
-          </div>
+          <FormActions editing={!!editing} label={label} saving={saving} onCancel={() => setForm(null)} />
         </form>
       )}
       <ListCard
@@ -241,14 +285,20 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
         search={search}
         onSearch={setSearch}
         searchHint={`Search ${plural.toLowerCase()}`}
-        adding={adding}
-        onAdd={open}
-        head={<tr><th className="nowrap">#</th><th>Name</th><th className="hide-sm">Added</th></tr>}
+        formOpen={!!form}
+        onAdd={() => open('new')}
+        head={<tr><th className="nowrap">#</th><th>Name</th><th className="hide-sm">Added</th><th aria-label="Actions" /></tr>}
         row={(r) => (
           <tr key={r.id}>
             <td className="muted">{r.id}</td>
             <td>{r.name}</td>
             <td className="nowrap hide-sm">{formatDate(r.rec_created_at)}</td>
+            <RowActions
+              name={`${label.toLowerCase()} ${r.name}`}
+              disabled={saving}
+              onEdit={() => open(r)}
+              onDelete={() => confirmDelete(`${path}/${r.id}`, `${label.toLowerCase()} "${r.name}"`, setBanner, load)}
+            />
           </tr>
         )}
       />
@@ -260,26 +310,28 @@ const EMPTY_UOM: UomInput = { uom: '', uom_as_standard: '', enable_decimal: fals
 
 /** Units of measurement: a short unit (NOS), its standard name (Numbers) and how many decimals a quantity may have. */
 function UomList() {
-  const { rows, loadError, load } = useList<Uom>('/api/v1/stock/uoms');
+  const path = '/api/v1/stock/uoms';
+  const { rows, loadError, load } = useList<Uom>(path);
   const [search, setSearch] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [mode, setMode] = useState<'new' | Uom | null>(null);
   const [form, setForm] = useState<UomInput>(EMPTY_UOM);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [serverErrors, setServerErrors] = useState<UomErrors>({});
-  const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [banner, setBanner] = useState<BannerState>(null);
   const [saving, setSaving] = useState(false);
+  const editing = mode !== null && mode !== 'new' ? mode : null;
 
   const clientErrors = useMemo(() => {
     const e = validateUom(form);
     const taken = (k: 'uom' | 'uom_as_standard') => {
       const v = form[k].trim().replace(/\s+/g, ' ').toLowerCase();
-      const hit = v ? rows?.find((r) => r[k].toLowerCase() === v) : undefined;
+      const hit = v ? rows?.find((r) => r.id !== editing?.id && r[k].toLowerCase() === v) : undefined;
       if (hit && !e[k]) e[k] = `is already used by ${hit.uom}`;
     };
     taken('uom');
     taken('uom_as_standard');
     return e;
-  }, [form, rows]);
+  }, [form, rows, editing]);
   const visibleError = (k: keyof UomInput) => serverErrors[k] ?? (touched.has(k) ? clientErrors[k] : undefined);
 
   const shown = useMemo(() => {
@@ -288,12 +340,17 @@ function UomList() {
     return rows.filter((r) => r.uom.toLowerCase().includes(q) || r.uom_as_standard.toLowerCase().includes(q));
   }, [rows, search]);
 
-  function open() {
-    setForm(EMPTY_UOM);
+  function open(row: 'new' | Uom) {
+    setForm(
+      row === 'new'
+        ? EMPTY_UOM
+        : { uom: row.uom, uom_as_standard: row.uom_as_standard, enable_decimal: row.enable_decimal, number_decimal: row.enable_decimal ? String(row.number_decimal) : '' },
+    );
     setTouched(new Set());
     setServerErrors({});
     setBanner(null);
-    setAdding(true);
+    setMode(row);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function set<K extends keyof UomInput>(k: K, v: UomInput[K]) {
@@ -317,17 +374,17 @@ function UomList() {
     }
     setSaving(true);
     try {
-      const saved = await api<Uom>('/api/v1/stock/uoms', {
-        method: 'POST',
-        body: JSON.stringify({
-          uom: form.uom.trim(),
-          uom_as_standard: form.uom_as_standard.trim(),
-          enable_decimal: form.enable_decimal,
-          ...(form.enable_decimal ? { number_decimal: Number(form.number_decimal) } : {}),
-        }),
+      const body = JSON.stringify({
+        uom: form.uom.trim(),
+        uom_as_standard: form.uom_as_standard.trim(),
+        enable_decimal: form.enable_decimal,
+        ...(form.enable_decimal ? { number_decimal: Number(form.number_decimal) } : {}),
       });
-      setBanner({ kind: 'ok', text: `Unit ${saved.uom} (${saved.uom_as_standard}) added.` });
-      setAdding(false);
+      const saved = editing
+        ? await api<Uom>(`${path}/${editing.id}`, { method: 'PUT', body })
+        : await api<Uom>(path, { method: 'POST', body });
+      setBanner({ kind: 'ok', text: `Unit ${saved.uom} (${saved.uom_as_standard}) ${editing ? 'saved' : 'added'}.` });
+      setMode(null);
       await load();
     } catch (err) {
       if (err instanceof ApiError && err.fields.some((f) => f.field)) setServerErrors(fieldMap(err.fields) as UomErrors);
@@ -343,9 +400,9 @@ function UomList() {
   return (
     <>
       {banner && <Banner kind={banner.kind}>{banner.text}</Banner>}
-      {adding && (
+      {mode && (
         <form className="card" onSubmit={onSubmit} noValidate>
-          <h2>Add a unit of measurement</h2>
+          <h2>{editing ? `Edit unit ${editing.uom}` : 'Add a unit of measurement'}</h2>
           <div className="grid">
             <Field id="uom-uom" label="Unit" required error={visibleError('uom')} hint="Up to 5 characters, e.g. NOS, KG" className="col-3">
               <input id="uom-uom" value={form.uom} onChange={(e) => set('uom', e.target.value)} onBlur={blur('uom')}
@@ -371,14 +428,7 @@ function UomList() {
               </Field>
             )}
           </div>
-          <div className="actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setAdding(false)} disabled={saving}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Add unit'}
-            </button>
-          </div>
+          <FormActions editing={!!editing} label="unit" saving={saving} onCancel={() => setMode(null)} />
         </form>
       )}
       <ListCard
@@ -389,15 +439,21 @@ function UomList() {
         search={search}
         onSearch={setSearch}
         searchHint="Search units by unit or name"
-        adding={adding}
-        onAdd={open}
-        head={<tr><th>Unit</th><th>Standard name</th><th>Decimals</th><th className="hide-sm">Added</th></tr>}
+        formOpen={!!mode}
+        onAdd={() => open('new')}
+        head={<tr><th>Unit</th><th>Standard name</th><th>Decimals</th><th className="hide-sm">Added</th><th aria-label="Actions" /></tr>}
         row={(r) => (
           <tr key={r.id}>
             <td><strong>{r.uom}</strong></td>
             <td>{r.uom_as_standard}</td>
             <td>{r.enable_decimal ? `${r.number_decimal} places` : <span className="muted">Whole numbers</span>}</td>
             <td className="nowrap hide-sm">{formatDate(r.rec_created_at)}</td>
+            <RowActions
+              name={`unit ${r.uom}`}
+              disabled={saving}
+              onEdit={() => open(r)}
+              onDelete={() => confirmDelete(`${path}/${r.id}`, `unit ${r.uom}`, setBanner, load)}
+            />
           </tr>
         )}
       />

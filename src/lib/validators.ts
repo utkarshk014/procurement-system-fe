@@ -240,7 +240,8 @@ export function validateItem(f: ItemForm): ItemErrors {
   if (!f.item_desc.trim()) e.item_desc = 'is required';
   else if (f.item_desc.trim().length > 250) e.item_desc = 'must be at most 250 characters';
   const code = f.item_code.trim();
-  if (code.length > 20) e.item_code = 'must be at most 20 characters';
+  if (!code) e.item_code = 'is required';
+  else if (code.length > 20) e.item_code = 'must be at most 20 characters';
   else if (code && !/^[A-Za-z0-9][A-Za-z0-9./-]*$/.test(code)) e.item_code = 'may contain only letters, digits and - / .';
   if (!f.grp_cd) e.grp_cd = 'is required';
   if (!f.uom_cd) e.uom_cd = 'is required';

@@ -27,7 +27,7 @@ function half(v: string): string {
 
 const percent = (v: number | null) => (v === null ? '—' : `${v}%`);
 
-/** The item master: a searchable list with filters, an add form and delete. No edit yet. */
+/** The item master: a searchable list with filters, and add, edit and delete. */
 export default function ItemsPage() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [lookups, setLookups] = useState<Lookups | null>(null);
@@ -35,7 +35,8 @@ export default function ItemsPage() {
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState<'' | ItemType>('');
-  const [adding, setAdding] = useState(false);
+  // null: no form; 'new': adding; an item: editing it.
+  const [formFor, setFormFor] = useState<'new' | Item | null>(null);
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -98,14 +99,16 @@ export default function ItemsPage() {
       <PageHead title="Items" subtitle="Goods and services the organisation buys." />
       {banner && <Banner kind={banner.kind}>{banner.text}</Banner>}
 
-      {adding ? (
+      {formFor ? (
         <ItemFormCard
+          key={formFor === 'new' ? 'new' : formFor.id}
           lookups={lookups}
           items={items}
-          onCancel={() => setAdding(false)}
+          editing={formFor === 'new' ? null : formFor}
+          onCancel={() => setFormFor(null)}
           onSaved={async (saved) => {
-            setAdding(false);
-            setBanner({ kind: 'ok', text: `Item "${saved.item_desc}" added.` });
+            setBanner({ kind: 'ok', text: `Item "${saved.item_desc}" ${formFor === 'new' ? 'added' : 'saved'}.` });
+            setFormFor(null);
             await load();
           }}
         />
@@ -125,8 +128,8 @@ export default function ItemsPage() {
           </h2>
           <div className="row-actions">
             <Link to="/stock" className="btn btn-secondary btn-sm">Stock lists</Link>
-            {!adding && (
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => { setBanner(null); setAdding(true); }}
+            {!formFor && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => { setBanner(null); setFormFor('new'); }}
                 disabled={missing.length > 0}>
                 Add item
               </button>
@@ -190,10 +193,16 @@ export default function ItemsPage() {
                       )}
                     </td>
                     <td className="right">
-                      <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(it)} disabled={busy}
-                        aria-label={`Delete item ${it.item_desc}`}>
-                        Delete
-                      </button>
+                      <div className="row-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={busy} aria-label={`Edit item ${it.item_desc}`}
+                          onClick={() => { setBanner(null); setFormFor(it); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+                          Edit
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(it)} disabled={busy}
+                          aria-label={`Delete item ${it.item_desc}`}>
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -202,38 +211,54 @@ export default function ItemsPage() {
           </div>
         )}
         <p className="muted small">
-          An item can be deleted until it has stock or a purchase. Editing is not available yet: the database has no procedure to
-          change one.
+          An item can be deleted until it has stock or a purchase.
         </p>
       </section>
     </>
   );
 }
 
-function ItemFormCard({ lookups, items, onCancel, onSaved }: {
+/** The form's text for a stored item. */
+function toForm(it: Item): ItemForm {
+  const s = (v: number | null) => (v === null ? '' : String(v));
+  return {
+    item_desc: it.item_desc, item_code: it.item_code,
+    grp_cd: s(it.grp_cd), cat_cd: s(it.cat_cd), manf_cd: s(it.manf_cd), uom_cd: s(it.uom_cd),
+    goods_service_item: it.goods_service_item, item_consumable: it.item_consumable, item_is_spare: it.item_is_spare,
+    track_serial: it.track_serial, gst_applicable: it.gst_applicable, gst_hsn_code: it.gst_hsn_code,
+    gst_percentage: it.gst_applicable ? s(it.gst_percentage) : '',
+    sgst_percentage: it.gst_applicable ? s(it.sgst_percentage) : '',
+    cgst_percentage: it.gst_applicable ? s(it.cgst_percentage) : '',
+  };
+}
+
+function ItemFormCard({ lookups, items, editing, onCancel, onSaved }: {
   lookups: Lookups;
   items: Item[];
+  editing: Item | null;
   onCancel: () => void;
   onSaved: (saved: Item) => void | Promise<void>;
 }) {
-  const [form, setForm] = useState<ItemForm>(EMPTY);
+  const [form, setForm] = useState<ItemForm>(() => (editing ? toForm(editing) : EMPTY));
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [serverErrors, setServerErrors] = useState<ItemErrors>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   // SGST and CGST follow GST (half each) until the user types one of them.
-  const [splitByHand, setSplitByHand] = useState(false);
+  // An item being edited keeps its own split.
+  const [splitByHand, setSplitByHand] = useState(!!editing);
 
   const clientErrors = useMemo(() => {
     const e = validateItem(form);
     const desc = form.item_desc.trim().replace(/\s+/g, ' ').toLowerCase();
     const code = form.item_code.trim().toUpperCase();
-    const sameDesc = desc && items.find((it) => it.item_desc.toLowerCase() === desc);
-    const sameCode = code && items.find((it) => it.item_code.toUpperCase() === code);
+    const others = items.filter((it) => it.id !== editing?.id);
+    const sameDesc = desc && others.find((it) => it.item_desc.toLowerCase() === desc);
+    const sameCode = code && others.find((it) => it.item_code.toUpperCase() === code);
     if (sameDesc && !e.item_desc) e.item_desc = 'is already an item';
     if (sameCode && !e.item_code) e.item_code = `is already used by "${sameCode.item_desc}"`;
     return e;
-  }, [form, items]);
+  }, [form, items, editing]);
   const visibleError = (k: keyof ItemForm) => serverErrors[k] ?? (touched.has(k) ? clientErrors[k] : undefined);
 
   function set<K extends keyof ItemForm>(k: K, v: ItemForm[K]) {
@@ -269,8 +294,8 @@ function ItemFormCard({ lookups, items, onCancel, onSaved }: {
     const goods = form.goods_service_item === 'Goods';
     setSaving(true);
     try {
-      const saved = await api<Item>('/api/v1/stock/items', {
-        method: 'POST',
+      const saved = await api<Item>(editing ? `/api/v1/stock/items/${editing.id}` : '/api/v1/stock/items', {
+        method: editing ? 'PUT' : 'POST',
         body: JSON.stringify({
           item_desc: form.item_desc.trim(),
           item_code: form.item_code.trim(),
@@ -338,13 +363,13 @@ function ItemFormCard({ lookups, items, onCancel, onSaved }: {
 
   return (
     <form className="card" onSubmit={onSubmit} noValidate>
-      <h2>Add an item</h2>
+      <h2>{editing ? `Edit item "${editing.item_desc}"` : 'Add an item'}</h2>
       {error && <Banner kind="err">{error}</Banner>}
 
       <h3>Item</h3>
       <div className="grid">
         {text('item_desc', 'Description', { required: true, max: 250, className: 'col-8', hint: 'e.g. A4 paper 75 GSM (500 sheets)' })}
-        {text('item_code', 'Item code', { max: 20, className: 'col-4', hint: 'Optional, e.g. PAP-A4-75' })}
+        {text('item_code', 'Item code', { required: true, max: 20, className: 'col-4', hint: 'e.g. PAP-A4-75' })}
         {select('grp_cd', 'Group', lookups.groups.map((g) => ({ value: g.id, label: g.name })), true)}
         {select('uom_cd', 'Unit', lookups.uoms.map((u) => ({ value: u.id, label: `${u.uom} · ${u.uom_as_standard}` })), true)}
         {select('cat_cd', 'Category', lookups.categories.map((c) => ({ value: c.id, label: c.name })), false)}
@@ -390,7 +415,7 @@ function ItemFormCard({ lookups, items, onCancel, onSaved }: {
           Cancel
         </button>
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Saving…' : 'Add item'}
+          {saving ? 'Saving…' : editing ? 'Save changes' : 'Add item'}
         </button>
       </div>
     </form>
