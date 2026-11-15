@@ -1,5 +1,6 @@
 // Mirrors the API's rules (docs/API.md and src/packages/validation in the backend) for instant feedback.
 // The API checks everything again; its answer always wins.
+import { UQCS } from './uqc';
 import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate, ItemForm, UomInput } from './types';
 
 export type Errors = Partial<Record<keyof CompanyInput, string>>;
@@ -222,7 +223,7 @@ export function validateUom(u: UomInput): UomErrors {
   else if (/\s/.test(uom)) e.uom = 'must not contain spaces';
   const std = u.uom_as_standard.trim();
   if (!std) e.uom_as_standard = 'is required';
-  else if (std.length > 50) e.uom_as_standard = 'must be at most 50 characters';
+  else if (!(UQCS as readonly string[]).includes(std)) e.uom_as_standard = 'pick a GST unit code from the list';
   if (u.enable_decimal) {
     if (!u.number_decimal.trim()) e.number_decimal = 'is required when decimals are on';
     else if (!/^[1-9]$/.test(u.number_decimal.trim())) e.number_decimal = 'must be from 1 to 9';

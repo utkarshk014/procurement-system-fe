@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type Keyboar
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError, errorMessage, fieldMap } from '../lib/api';
 import { formatDate } from '../lib/format';
+import { UQCS, uqcCode } from '../lib/uqc';
 import type { StockEntry, Uom, UomInput } from '../lib/types';
 import { validateUom, type UomErrors } from '../lib/validators';
 import { Banner, Field, Loading, PageHead } from '../components/ui';
@@ -309,7 +310,7 @@ function NameList({ listKey, label, plural, example }: { listKey: TabKey; label:
 
 const EMPTY_UOM: UomInput = { uom: '', uom_as_standard: '', enable_decimal: false, number_decimal: '' };
 
-/** Units of measurement: a short unit (NOS), its standard name (Numbers) and how many decimals a quantity may have. */
+/** Units of measurement: a short unit (NOS), its GST unit code (NOS-NUMBERS) and how many decimals a quantity may have. */
 function UomList() {
   const path = '/api/v1/stock/uoms';
   const { rows, loadError, load } = useList<Uom>(path);
@@ -357,6 +358,8 @@ function UomList() {
   function set<K extends keyof UomInput>(k: K, v: UomInput[K]) {
     setForm((f) => {
       const next = { ...f, [k]: k === 'uom' ? String(v).toUpperCase().replace(/\s/g, '').slice(0, 5) : v };
+      // Picking a code fills an empty unit with it (KGS-KILOGRAMS gives KGS).
+      if (k === 'uom_as_standard' && !f.uom.trim() && v) next.uom = uqcCode(String(v));
       if (k === 'enable_decimal' && !v) next.number_decimal = '';
       return next;
     });
@@ -409,11 +412,25 @@ function UomList() {
               <input id="uom-uom" value={form.uom} onChange={(e) => set('uom', e.target.value)} onBlur={blur('uom')}
                 autoComplete="off" autoFocus aria-invalid={!!visibleError('uom')} />
             </Field>
-            <Field id="uom-uom_as_standard" label="Standard name" required error={visibleError('uom_as_standard')}
-              hint="e.g. Numbers, Kilograms" className="col-5">
-              <input id="uom-uom_as_standard" value={form.uom_as_standard} maxLength={50}
+            <Field id="uom-uom_as_standard" label="GST unit code" required error={visibleError('uom_as_standard')}
+              hint="The standard GST unit (UQC), as in Tally" className="col-5">
+              <select id="uom-uom_as_standard" value={form.uom_as_standard}
                 onChange={(e) => set('uom_as_standard', e.target.value)} onBlur={blur('uom_as_standard')}
-                aria-invalid={!!visibleError('uom_as_standard')} />
+                aria-invalid={!!visibleError('uom_as_standard')}>
+                <option value="">Select a unit code</option>
+                {/* A unit saved before the list existed keeps its old name as an option. */}
+                {editing && !(UQCS as readonly string[]).includes(editing.uom_as_standard) && (
+                  <option value={editing.uom_as_standard}>{editing.uom_as_standard} (old, pick one from the list)</option>
+                )}
+                {UQCS.map((u) => {
+                  const user = rows.find((r) => r.id !== editing?.id && r.uom_as_standard === u);
+                  return (
+                    <option key={u} value={u} disabled={!!user}>
+                      {u}{user ? ` (used by ${user.uom})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
             </Field>
             <div className="field col-2 check-field">
               <label className="check">
@@ -442,7 +459,7 @@ function UomList() {
         searchHint="Search units by unit or name"
         formOpen={!!mode}
         onAdd={() => open('new')}
-        head={<tr><th>Unit</th><th>Standard name</th><th>Decimals</th><th className="hide-sm">Added</th><th aria-label="Actions" /></tr>}
+        head={<tr><th>Unit</th><th>GST unit code</th><th>Decimals</th><th className="hide-sm">Added</th><th aria-label="Actions" /></tr>}
         row={(r) => (
           <tr key={r.id}>
             <td><strong>{r.uom}</strong></td>
