@@ -188,3 +188,71 @@ export interface ImportReport {
   missing_branches: NameCount[];
   default_from_fin_yr: string;
 }
+
+/** One row of a stock list (item groups, categories, manufacturers). The server numbers rows itself. */
+export interface StockEntry {
+  id: number;
+  name: string;
+  rec_created_at?: string;
+  last_update_at?: string | null;
+}
+
+/** A unit of measurement. number_decimal is how many decimals a quantity may have (0 when off). */
+export interface Uom {
+  id: number;
+  uom: string;
+  uom_as_standard: string;
+  enable_decimal: boolean;
+  number_decimal: number;
+  rec_created_at?: string;
+  last_update_at?: string | null;
+}
+
+export type UomInput = Pick<Uom, 'uom' | 'uom_as_standard' | 'enable_decimal'> & { number_decimal: string };
+
+export type ItemType = 'Goods' | 'Service';
+
+/** An item. item_group, category, manufacturer and uom are the linked rows' names, filled in by the server. */
+export interface Item {
+  id: number;
+  item_desc: string;
+  item_code: string;
+  grp_cd: number | null;
+  item_group?: string;
+  cat_cd: number | null;
+  category?: string;
+  manf_cd: number | null;
+  manufacturer?: string;
+  uom_cd: number | null;
+  uom?: string;
+  goods_service_item: ItemType;
+  item_consumable: boolean;
+  item_is_spare: boolean;
+  gst_applicable: boolean;
+  gst_hsn_code: string;
+  gst_percentage: number | null;
+  sgst_percentage: number | null;
+  cgst_percentage: number | null;
+  track_serial: boolean;
+  rec_created_at?: string;
+  last_update_at?: string | null;
+}
+
+/** The item form: ids and percentages are kept as typed text until they are sent. */
+export interface ItemForm {
+  item_desc: string;
+  item_code: string;
+  grp_cd: string;
+  cat_cd: string;
+  manf_cd: string;
+  uom_cd: string;
+  goods_service_item: ItemType;
+  item_consumable: boolean;
+  item_is_spare: boolean;
+  track_serial: boolean;
+  gst_applicable: boolean;
+  gst_hsn_code: string;
+  gst_percentage: string;
+  sgst_percentage: string;
+  cgst_percentage: string;
+}

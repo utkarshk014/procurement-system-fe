@@ -1,6 +1,6 @@
 // Mirrors the API's rules (docs/API.md and src/packages/validation in the backend) for instant feedback.
 // The API checks everything again; its answer always wins.
-import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate } from './types';
+import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate, ItemForm, UomInput } from './types';
 
 export type Errors = Partial<Record<keyof CompanyInput, string>>;
 
@@ -206,6 +206,55 @@ export function validateInstitution(i: InstitutionInput, regions: string[], toda
   }
   for (const [k, max] of Object.entries(INST_MAX) as [keyof InstitutionInput, number][]) {
     if (!e[k] && String(i[k]).trim().length > max) e[k] = `Must be ${max} characters or fewer`;
+  }
+  return e;
+}
+
+// ---- Stock (the same rules as the API, so most mistakes show before saving)
+
+export type UomErrors = Partial<Record<keyof UomInput, string>>;
+
+export function validateUom(u: UomInput): UomErrors {
+  const e: UomErrors = {};
+  const uom = u.uom.trim();
+  if (!uom) e.uom = 'is required';
+  else if (uom.length > 5) e.uom = 'must be at most 5 characters';
+  else if (/\s/.test(uom)) e.uom = 'must not contain spaces';
+  const std = u.uom_as_standard.trim();
+  if (!std) e.uom_as_standard = 'is required';
+  else if (std.length > 50) e.uom_as_standard = 'must be at most 50 characters';
+  if (u.enable_decimal) {
+    if (!u.number_decimal.trim()) e.number_decimal = 'is required when decimals are on';
+    else if (!/^[1-9]$/.test(u.number_decimal.trim())) e.number_decimal = 'must be from 1 to 9';
+  }
+  return e;
+}
+
+export type ItemErrors = Partial<Record<keyof ItemForm, string>>;
+
+const isPercent = (v: string) => /^\d{1,3}(\.\d{1,2})?$/.test(v.trim()) && Number(v) <= 100;
+const cents = (v: string) => Math.round(Number(v) * 100);
+
+export function validateItem(f: ItemForm): ItemErrors {
+  const e: ItemErrors = {};
+  if (!f.item_desc.trim()) e.item_desc = 'is required';
+  else if (f.item_desc.trim().length > 250) e.item_desc = 'must be at most 250 characters';
+  const code = f.item_code.trim();
+  if (code.length > 20) e.item_code = 'must be at most 20 characters';
+  else if (code && !/^[A-Za-z0-9][A-Za-z0-9./-]*$/.test(code)) e.item_code = 'may contain only letters, digits and - / .';
+  if (!f.grp_cd) e.grp_cd = 'is required';
+  if (!f.uom_cd) e.uom_cd = 'is required';
+  const hsn = f.gst_hsn_code.trim();
+  if (hsn && !/^(\d{4}|\d{6}|\d{8})$/.test(hsn)) e.gst_hsn_code = 'must be 4, 6 or 8 digits';
+  if (f.gst_applicable) {
+    let ok = true;
+    for (const k of ['gst_percentage', 'sgst_percentage', 'cgst_percentage'] as const) {
+      if (!f[k].trim()) { e[k] = 'is required when GST applies'; ok = false; }
+      else if (!isPercent(f[k])) { e[k] = 'must be from 0 to 100, at most 2 decimals'; ok = false; }
+    }
+    if (ok && cents(f.gst_percentage) !== cents(f.sgst_percentage) + cents(f.cgst_percentage)) {
+      e.gst_percentage = 'must equal SGST plus CGST';
+    }
   }
   return e;
 }

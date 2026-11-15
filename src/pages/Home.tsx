@@ -96,6 +96,14 @@ export default function Home() {
           <strong>Import institutions</strong>
           <span className="muted small">From Excel, with a downloadable template</span>
         </Link>
+        <Link to="/stock" className="quick-link">
+          <strong>Stock lists</strong>
+          <span className="muted small">Item groups, categories, manufacturers, units</span>
+        </Link>
+        <Link to="/stock/items" className="quick-link">
+          <strong>Items</strong>
+          <span className="muted small">Goods and services, with GST</span>
+        </Link>
       </nav>
 
       {c && (
