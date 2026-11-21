@@ -4,6 +4,7 @@ import { api, ApiError, errorMessage, fieldMap } from '../lib/api';
 import type { Item, ItemForm, ItemType, StockEntry, Uom } from '../lib/types';
 import { validateItem, type ItemErrors } from '../lib/validators';
 import { Banner, Field, Loading, PageHead } from '../components/ui';
+import { ExportButton } from '../components/ExcelImport';
 
 interface Lookups {
   groups: StockEntry[];
@@ -128,6 +129,8 @@ export default function ItemsPage() {
           </h2>
           <div className="row-actions">
             <Link to="/stock" className="btn btn-secondary btn-sm">Stock lists</Link>
+            <ExportButton path="/api/v1/stock/items/export" filename="items.xlsx" disabled={items.length === 0} />
+            <Link to="/stock/items/import" className="btn btn-secondary btn-sm">Import from Excel</Link>
             {!formFor && (
               <button type="button" className="btn btn-primary btn-sm" onClick={() => { setBanner(null); setFormFor('new'); }}
                 disabled={missing.length > 0}>

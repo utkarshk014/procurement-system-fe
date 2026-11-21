@@ -372,3 +372,22 @@ export interface FinancialForm {
   fin_itr_date: string;
   fin_itr_s3_bucket_reference: string;
 }
+
+/** One row an Excel import cannot take: key and name say which record (item code, vendor PAN). */
+export interface ExcelImportProblem {
+  row: number;
+  key: string;
+  name: string;
+  errors: { field?: string; message: string }[];
+}
+
+/** POST /stock/items/import and /vendors/import. missing lists, per column, names to add to their list first. */
+export interface ExcelImportReport {
+  dry_run: boolean;
+  total: number;
+  ready: number;
+  imported: number;
+  skipped: number;
+  problems: ExcelImportProblem[];
+  missing: Record<string, NameCount[]>;
+}

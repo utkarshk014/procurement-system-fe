@@ -21,6 +21,8 @@ import StockListsPage from './pages/StockListsPage';
 import ItemsPage from './pages/ItemsPage';
 import VendorsPage from './pages/VendorsPage';
 import VendorPage from './pages/VendorPage';
+import ItemImportPage from './pages/ItemImportPage';
+import VendorImportPage from './pages/VendorImportPage';
 
 /** Logged-in tenant admins only. The platform admin cannot open company screens. */
 function RequireTenantAdmin({ children }: { children: ReactNode }) {
@@ -83,7 +85,9 @@ export default function App() {
         <Route path="/institutions/:code" element={afterSetup(<InstitutionPage />)} />
         <Route path="/stock" element={afterSetup(<StockListsPage />)} />
         <Route path="/stock/items" element={afterSetup(<ItemsPage />)} />
+        <Route path="/stock/items/import" element={afterSetup(<ItemImportPage />)} />
         <Route path="/vendors" element={afterSetup(<VendorsPage />)} />
+        <Route path="/vendors/import" element={afterSetup(<VendorImportPage />)} />
         <Route path="/vendors/:id" element={afterSetup(<VendorPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

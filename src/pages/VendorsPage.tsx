@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../lib/api';
 import type { StockEntry, Vendor } from '../lib/types';
 import { Banner, Loading, PageHead } from '../components/ui';
+import { ExportButton } from '../components/ExcelImport';
 
 /** The vendor master: a searchable list with a group filter. Adding and editing happen on the vendor page. */
 export default function VendorsPage() {
@@ -57,9 +58,13 @@ export default function VendorsPage() {
           <h2>
             Vendors <span className="muted small">({vendors.length})</span>
           </h2>
-          <Link to="/vendors/new" className="btn btn-primary btn-sm">
-            Add vendor
-          </Link>
+          <div className="row-actions">
+            <ExportButton path="/api/v1/vendors/export" filename="vendors.xlsx" disabled={vendors.length === 0} />
+            <Link to="/vendors/import" className="btn btn-secondary btn-sm">Import from Excel</Link>
+            <Link to="/vendors/new" className="btn btn-primary btn-sm">
+              Add vendor
+            </Link>
+          </div>
         </div>
         {vendors.length > 0 && (
           <div className="filters vendor-filters">
