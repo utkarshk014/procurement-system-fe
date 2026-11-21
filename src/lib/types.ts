@@ -256,3 +256,119 @@ export interface ItemForm {
   sgst_percentage: string;
   cgst_percentage: string;
 }
+
+// ---- Vendors
+
+export interface VendorContact {
+  person: string;
+  designation: string;
+  mobile: string;
+  email: string;
+}
+
+export interface VendorGroup {
+  grp_cd: number;
+  item_group: string;
+}
+
+/** A vendor as the API returns it. Field names are the database's (including refered_by and is_contruction_comp). */
+export interface Vendor {
+  id: number;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  pin: string;
+  vendor_type: string;
+  mobile: string;
+  email: string;
+  website: string;
+  reg_date: string | null;
+  pan: string;
+  gstin: string;
+  gstin_state: string;
+  tan: string;
+  refered_by: string;
+  correspond_email: string;
+  correspond_mobile: string;
+  supply_type: string;
+  is_contruction_comp: boolean;
+  is_manufacturer: boolean;
+  company_since: string;
+  contacts: VendorContact[];
+  item_groups: VendorGroup[];
+}
+
+export interface VendorFinancial {
+  fin_year: string;
+  fin_turnover_declared: number | null;
+  fin_profit_declared: number | null;
+  fin_itr_no: string;
+  fin_itr_date: string | null;
+  fin_itr_s3_bucket_reference: string;
+}
+
+export interface VendorCertificate {
+  file: string;
+  caption?: string;
+}
+
+export type VendorCertificates = Record<string, VendorCertificate>;
+
+export interface VendorDetail extends Vendor {
+  financials: VendorFinancial[];
+  certificates: VendorCertificates;
+}
+
+export interface VendorOptions {
+  vendor_types: string[];
+  supply_types: string[];
+  certificate_slots: string[];
+  certificate_labels: Record<string, string>;
+  max_file_bytes: number;
+}
+
+export interface UploadedFile {
+  key: string;
+  name: string;
+  size: number;
+  content_type: string;
+}
+
+/** The vendor form: everything as typed text, groups as ids. */
+export interface VendorForm {
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  pin: string;
+  vendor_type: string;
+  mobile: string;
+  email: string;
+  website: string;
+  reg_date: string;
+  pan: string;
+  gstin: string;
+  tan: string;
+  refered_by: string;
+  correspond_email: string;
+  correspond_mobile: string;
+  supply_type: string;
+  is_contruction_comp: boolean;
+  is_manufacturer: boolean;
+  company_since: string;
+  contacts: VendorContact[];
+  grp_cds: number[];
+}
+
+/** One financial year as typed. */
+export interface FinancialForm {
+  fin_year: string;
+  fin_turnover_declared: string;
+  fin_profit_declared: string;
+  fin_itr_no: string;
+  fin_itr_date: string;
+  fin_itr_s3_bucket_reference: string;
+}

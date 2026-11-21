@@ -104,6 +104,10 @@ export default function Home() {
           <strong>Items</strong>
           <span className="muted small">Goods and services, with GST</span>
         </Link>
+        <Link to="/vendors" className="quick-link">
+          <strong>Vendors</strong>
+          <span className="muted small">Suppliers, financials, certificates</span>
+        </Link>
       </nav>
 
       {c && (

@@ -19,6 +19,8 @@ import InstitutionPage from './pages/InstitutionPage';
 import InstitutionImportPage from './pages/InstitutionImportPage';
 import StockListsPage from './pages/StockListsPage';
 import ItemsPage from './pages/ItemsPage';
+import VendorsPage from './pages/VendorsPage';
+import VendorPage from './pages/VendorPage';
 
 /** Logged-in tenant admins only. The platform admin cannot open company screens. */
 function RequireTenantAdmin({ children }: { children: ReactNode }) {
@@ -81,6 +83,8 @@ export default function App() {
         <Route path="/institutions/:code" element={afterSetup(<InstitutionPage />)} />
         <Route path="/stock" element={afterSetup(<StockListsPage />)} />
         <Route path="/stock/items" element={afterSetup(<ItemsPage />)} />
+        <Route path="/vendors" element={afterSetup(<VendorsPage />)} />
+        <Route path="/vendors/:id" element={afterSetup(<VendorPage />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

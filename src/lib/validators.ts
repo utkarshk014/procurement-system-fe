@@ -1,7 +1,7 @@
 // Mirrors the API's rules (docs/API.md and src/packages/validation in the backend) for instant feedback.
 // The API checks everything again; its answer always wins.
 import { UQCS } from './uqc';
-import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate, ItemForm, UomInput } from './types';
+import type { CodeEntryInput, CompanyInput, FinancialYear, GstState, InstitutionInput, TaxDetailsInput, TrustCreate, ItemForm, UomInput, VendorForm, FinancialForm } from './types';
 
 export type Errors = Partial<Record<keyof CompanyInput, string>>;
 
@@ -258,5 +258,91 @@ export function validateItem(f: ItemForm): ItemErrors {
       e.gst_percentage = 'must equal SGST plus CGST';
     }
   }
+  return e;
+}
+
+// ---------- Vendors ----------
+
+export type VendorErrors = Record<string, string | undefined>;
+
+/** The vendor's own number: an optional + and 7 to 14 digits (a landline or a foreign number fits). */
+export const vendorPhone = (v: string) => {
+  const s = v.trim();
+  const plus = s.startsWith('+') ? '+' : '';
+  const digits = s.replace(/\D/g, '');
+  return digits ? plus + digits : s;
+};
+
+/** Same rules as the API's PrepareVendor. Contact fields are keyed contacts.<n>.<field>. */
+export function validateVendor(f: VendorForm, today: string): VendorErrors {
+  const e: VendorErrors = {};
+  const max = (k: keyof VendorForm, n: number) => {
+    const v = String(f[k] ?? '').trim();
+    if (v.length > n && !e[k]) e[k] = `must be at most ${n} characters`;
+  };
+  if (!f.name.trim()) e.name = 'is required';
+  max('name', 250); max('address', 250); max('city', 250); max('state', 250); max('country', 250);
+  max('website', 100); max('refered_by', 250); max('email', 150); max('correspond_email', 150);
+
+  const pin = f.pin.trim();
+  if (pin) {
+    if (isIndia(f.country)) { if (!isPin(pin)) e.pin = 'must be a 6-digit PIN code'; }
+    else if (!/^[A-Za-z0-9 -]{3,10}$/.test(pin)) e.pin = 'may contain only letters, digits, spaces and -';
+  }
+  if (f.mobile.trim() && !/^\+?\d{7,14}$/.test(vendorPhone(f.mobile))) e.mobile = 'must be 7 to 14 digits, optionally starting with +';
+  if (f.email.trim() && !isEmail(f.email)) e.email = 'is not a valid email address';
+  if (f.website.trim() && !isWebsite(f.website)) e.website = 'is not a valid website';
+  if (f.reg_date && f.reg_date > today) e.reg_date = 'cannot be in the future';
+
+  const pan = f.pan.trim().toUpperCase();
+  const gstin = f.gstin.trim().toUpperCase();
+  if (pan && !isPan(pan)) e.pan = 'must be a PAN like ABCDE1234F';
+  if (gstin) {
+    if (!isGstin(gstin)) e.gstin = 'is not a valid GSTIN';
+    else if (pan && isPan(pan) && !gstinMatchesPan(gstin, pan)) e.gstin = 'PAN inside GSTIN must match the PAN';
+  }
+  if (f.tan.trim() && !/^[A-Z]{4}\d{5}[A-Z]$/.test(f.tan.trim().toUpperCase())) e.tan = 'must be a TAN like ABCD12345E';
+  if (f.correspond_email.trim() && !isEmail(f.correspond_email)) e.correspond_email = 'is not a valid email address';
+  if (f.correspond_mobile.trim() && !isMobile(f.correspond_mobile)) e.correspond_mobile = 'must be a 10-digit mobile number';
+  const since = f.company_since.trim();
+  if (since) {
+    const year = Number(today.slice(0, 4));
+    if (!/^\d{4}$/.test(since)) e.company_since = 'must be a 4-digit year';
+    else if (Number(since) < 1800 || Number(since) > year) e.company_since = `must be a year from 1800 to ${year}`;
+  }
+  f.contacts.forEach((c, i) => {
+    const k = `contacts.${i}.`;
+    if (c.person.trim().length > 150) e[k + 'person'] = 'must be at most 150 characters';
+    if (c.designation.trim().length > 150) e[k + 'designation'] = 'must be at most 150 characters';
+    if (c.mobile.trim() && !isMobile(c.mobile)) e[k + 'mobile'] = 'must be a 10-digit mobile number';
+    if (c.email.trim() && !isEmail(c.email)) e[k + 'email'] = 'is not a valid email address';
+    if (!c.person.trim() && (c.designation.trim() || c.mobile.trim() || c.email.trim())) e[k + 'person'] = 'is required for a contact';
+  });
+  return e;
+}
+
+/** The financial year (1 April to 31 March) a YYYY-MM-DD date falls in, e.g. "2026-2027". */
+export function finYearOf(date: string): string {
+  const y = Number(date.slice(0, 4));
+  const start = Number(date.slice(5, 7)) >= 4 ? y : y - 1;
+  return `${start}-${start + 1}`;
+}
+
+const isAmount = (v: string, negative: boolean) => {
+  const s = v.trim().replace(/,/g, '');
+  return (negative ? /^-?\d{1,13}(\.\d{1,2})?$/ : /^\d{1,13}(\.\d{1,2})?$/).test(s);
+};
+
+export function validateFinancial(f: FinancialForm, today: string): Partial<Record<keyof FinancialForm, string>> {
+  const e: Partial<Record<keyof FinancialForm, string>> = {};
+  const m = /^(\d{4})-(\d{4})$/.exec(f.fin_year.trim());
+  if (!f.fin_year.trim()) e.fin_year = 'is required';
+  else if (!m) e.fin_year = 'must be like 2025-2026';
+  else if (Number(m[2]) !== Number(m[1]) + 1) e.fin_year = 'must be two consecutive years, like 2025-2026';
+  else if (f.fin_year.trim() > finYearOf(today)) e.fin_year = `cannot be after the current financial year ${finYearOf(today)}`;
+  if (f.fin_turnover_declared.trim() && !isAmount(f.fin_turnover_declared, false)) e.fin_turnover_declared = 'must be an amount, at most 2 decimals, not negative';
+  if (f.fin_profit_declared.trim() && !isAmount(f.fin_profit_declared, true)) e.fin_profit_declared = 'must be an amount, at most 2 decimals (negative for a loss)';
+  if (f.fin_itr_no.trim().length > 25) e.fin_itr_no = 'must be at most 25 characters';
+  if (f.fin_itr_date && f.fin_itr_date > today) e.fin_itr_date = 'cannot be in the future';
   return e;
 }
